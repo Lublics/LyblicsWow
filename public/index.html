@@ -750,6 +750,56 @@
       vertical-align: middle;
       margin-right: 6px;
     }
+
+    /* ── Live Banner ────────────────────────────────────────────────────────── */
+    .live-banner {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .live-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-red);
+      flex-shrink: 0;
+    }
+
+    .live-dot.online {
+      background: var(--accent-green);
+      box-shadow: 0 0 8px rgba(63, 185, 80, 0.5);
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 4px rgba(63, 185, 80, 0.3); }
+      50% { box-shadow: 0 0 12px rgba(63, 185, 80, 0.6); }
+    }
+
+    .live-player-name { font-weight: 600; font-size: 15px; }
+    .live-stats { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); }
+    .live-stat b { color: var(--text-primary); }
+
+    .btn-sm {
+      padding: 5px 14px;
+      font-size: 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      transition: all var(--transition);
+      margin-left: auto;
+    }
+
+    .btn-sm:hover { border-color: var(--accent-blue); color: var(--text-primary); }
   </style>
 </head>
 <body>
@@ -809,6 +859,10 @@
           <span class="status-dot" id="wsStatus"></span>
           <span id="wsStatusText">Connexion...</span>
         </div>
+        <div class="connection-status" style="margin-top:6px">
+          <span class="status-dot" id="liveStatus"></span>
+          <span id="liveStatusText">WoW: Hors ligne</span>
+        </div>
         <div class="last-update" id="lastUpdateText">Aucune mise a jour</div>
       </div>
     </aside>
@@ -818,10 +872,14 @@
 
       <!-- ── Overview ──────────────────────────────────────────────── -->
       <div class="section active" id="page-overview">
-        <div class="page-header">
-          <h1 class="page-title">Vue d'ensemble</h1>
-          <p class="page-subtitle">Toutes vos donnees d'addons en un coup d'oeil</p>
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 class="page-title">Vue d'ensemble</h1>
+            <p class="page-subtitle">Toutes vos donnees d'addons en un coup d'oeil</p>
+          </div>
+          <button class="btn-sm" onclick="manualRefresh()">Rafraichir</button>
         </div>
+        <div id="liveBanner"></div>
         <div class="overview-grid" id="overviewGrid">
           <div class="no-data">
             <div class="no-data-icon">&#128229;</div>
@@ -955,6 +1013,8 @@
 
     // ── Store ───────────────────────────────────────────────────────────────
     let addonData = {};
+    let liveData = null;
+    let lastLiveUpdate = null;
     let wsConnected = false;
 
     // ── WebSocket ───────────────────────────────────────────────────────────
@@ -986,11 +1046,19 @@
 
         if (msg.type === 'full') {
           addonData = msg.addons || {};
+          liveData = msg.live || null;
+          lastLiveUpdate = msg.lastLiveUpdate || null;
           updateLastUpdate(msg.lastUpdate);
+          updateLiveStatus();
           renderAll();
         } else if (msg.type === 'update') {
           addonData[msg.addon] = msg.data;
           updateLastUpdate(msg.lastUpdate);
+          renderAll();
+        } else if (msg.type === 'live') {
+          liveData = msg.data || null;
+          lastLiveUpdate = msg.lastLiveUpdate || null;
+          updateLiveStatus();
           renderAll();
         }
       };
@@ -1002,10 +1070,21 @@
         const res = await fetch('/api/addons');
         const data = await res.json();
         addonData = data.addons || {};
+        liveData = data.live || null;
+        lastLiveUpdate = data.lastLiveUpdate || null;
         updateLastUpdate(data.lastUpdate);
+        updateLiveStatus();
         renderAll();
       } catch (e) {
         console.error('Initial load failed:', e);
+      }
+    }
+
+    async function manualRefresh() {
+      try {
+        await fetch('/api/refresh', { method: 'POST' });
+      } catch (e) {
+        console.error('Refresh failed:', e);
       }
     }
 
@@ -1016,6 +1095,26 @@
         'MAJ: ' + d.toLocaleTimeString('fr-FR');
     }
 
+    function updateLiveStatus() {
+      const dot = document.getElementById('liveStatus');
+      const text = document.getElementById('liveStatusText');
+      // Consider "live" if we got data in the last 15 seconds
+      const isLive = lastLiveUpdate && (Date.now() - new Date(lastLiveUpdate).getTime() < 15000);
+      if (isLive && liveData?.player) {
+        dot.classList.add('connected');
+        text.textContent = 'WoW: ' + (liveData.player.name || 'En ligne');
+      } else if (liveData?.player) {
+        dot.classList.remove('connected');
+        text.textContent = 'WoW: Derniere sync';
+      } else {
+        dot.classList.remove('connected');
+        text.textContent = 'WoW: Hors ligne';
+      }
+    }
+
+    // Refresh live status indicator every 5s
+    setInterval(updateLiveStatus, 5000);
+
     // ── Render All ──────────────────────────────────────────────────────────
     function renderAll() {
       renderOverview();
@@ -1025,63 +1124,101 @@
       renderUtilities();
     }
 
+    // ── Live Banner ─────────────────────────────────────────────────────────
+    function renderLiveBanner() {
+      const el = document.getElementById('liveBanner');
+      if (!liveData || !liveData.player) {
+        el.innerHTML = '';
+        return;
+      }
+
+      const p = liveData.player;
+      const f = liveData.fps;
+      const isOnline = lastLiveUpdate && (Date.now() - new Date(lastLiveUpdate).getTime() < 15000);
+
+      el.innerHTML = `
+        <div class="live-banner">
+          <span class="live-dot ${isOnline ? 'online' : ''}"></span>
+          <span class="live-player-name">${p.name || '?'}</span>
+          <div class="live-stats">
+            <span>${p.class || '?'} ${p.level || '?'}</span>
+            <span>${p.zone || '?'}${p.subzone ? ' - ' + p.subzone : ''}</span>
+            ${f ? `<span>FPS: <b class="${f.liveFPS >= 60 ? 'text-green' : f.liveFPS >= 30 ? 'text-orange' : 'text-red'}">${f.liveFPS}</b></span>` : ''}
+            ${f ? `<span>Latence: <b class="text-blue">${f.latencyHome}ms</b></span>` : ''}
+            <span>Or: <b class="text-orange">${(p.gold || 0).toLocaleString()}g</b></span>
+          </div>
+        </div>`;
+    }
+
     // ── Overview ────────────────────────────────────────────────────────────
     function renderOverview() {
+      renderLiveBanner();
       const grid = document.getElementById('overviewGrid');
       let html = '';
 
-      // FPS card
+      // FPS card - merge saved + live data
       const fps = addonData.fps;
-      if (fps) {
-        const profile = fps.currentProfile || 'N/A';
+      const liveFps = liveData?.fps;
+      if (fps || liveFps) {
+        const fpsSource = liveFps || fps;
+        const profile = fpsSource.currentProfile || fps?.currentProfile || 'N/A';
         const profileColors = { performance: 'text-green', balanced: 'text-orange', ultra: 'text-purple', original: 'text-blue' };
+        const currentFPS = liveFps?.liveFPS;
+        const latency = liveFps?.latencyHome;
         html += `
           <div class="overview-card" onclick="navigate('fps')">
             <div class="overview-card-header">
               <div class="overview-icon" style="background:rgba(88,166,255,0.1)">&#9889;</div>
               <div>
                 <div class="overview-card-title">FPS Monitor</div>
-                <div class="overview-card-subtitle">Performance & graphiques</div>
+                <div class="overview-card-subtitle">Performance & graphiques${currentFPS != null ? ' (LIVE)' : ''}</div>
               </div>
             </div>
             <div class="overview-stats">
+              ${currentFPS != null ? `<div>
+                <div class="overview-stat-label">FPS actuel</div>
+                <div class="overview-stat-value ${currentFPS >= 60 ? 'text-green' : currentFPS >= 30 ? 'text-orange' : 'text-red'}">${currentFPS}</div>
+              </div>` : ''}
+              ${latency != null ? `<div>
+                <div class="overview-stat-label">Latence</div>
+                <div class="overview-stat-value text-cyan">${latency}ms</div>
+              </div>` : ''}
               <div>
-                <div class="overview-stat-label">Profil actif</div>
+                <div class="overview-stat-label">Profil</div>
                 <div class="overview-stat-value ${profileColors[profile] || ''}">${capitalize(profile)}</div>
               </div>
               <div>
-                <div class="overview-stat-label">FPS cible</div>
-                <div class="overview-stat-value text-cyan">${fps.targetFPS || 60}</div>
-              </div>
-              <div>
                 <div class="overview-stat-label">Auto Mode</div>
-                <div class="overview-stat-value ${fps.autoMode ? 'text-green' : 'text-muted'}">${fps.autoMode ? 'ON' : 'OFF'}</div>
+                <div class="overview-stat-value ${(fpsSource.autoMode || fps?.autoMode) ? 'text-green' : 'text-muted'}">${(fpsSource.autoMode || fps?.autoMode) ? 'ON' : 'OFF'}</div>
               </div>
             </div>
           </div>`;
       }
 
-      // Fishing card
-      const fish = addonData.fishing;
+      // Fishing card - use live data if available
+      const fish = liveData?.fishing || addonData.fishing;
       if (fish) {
-        const rate = fish.totalCasts > 0 ? Math.round((fish.totalCatches / fish.totalCasts) * 100) : 0;
+        const catches = fish.totalCatches || 0;
+        const casts = fish.totalCasts || 0;
+        const rate = casts > 0 ? Math.round((catches / casts) * 100) : 0;
+        const isLiveFish = liveData?.fishing != null;
         html += `
           <div class="overview-card" onclick="navigate('fishing')">
             <div class="overview-card-header">
               <div class="overview-icon" style="background:rgba(57,210,192,0.1)">&#127907;</div>
               <div>
                 <div class="overview-card-title">Fishing Tracker</div>
-                <div class="overview-card-subtitle">Suivi de peche</div>
+                <div class="overview-card-subtitle">Suivi de peche${isLiveFish ? ' (LIVE)' : ''}</div>
               </div>
             </div>
             <div class="overview-stats">
               <div>
                 <div class="overview-stat-label">Prises</div>
-                <div class="overview-stat-value text-cyan">${fish.totalCatches || 0}</div>
+                <div class="overview-stat-value text-cyan">${catches}</div>
               </div>
               <div>
                 <div class="overview-stat-label">Lancers</div>
-                <div class="overview-stat-value text-blue">${fish.totalCasts || 0}</div>
+                <div class="overview-stat-value text-blue">${casts}</div>
               </div>
               <div>
                 <div class="overview-stat-label">Taux</div>
@@ -1164,48 +1301,55 @@
     // ── FPS ─────────────────────────────────────────────────────────────────
     function renderFPS() {
       const fps = addonData.fps;
+      const live = liveData?.fps;
       const el = document.getElementById('fpsContent');
-      if (!fps) {
+      if (!fps && !live) {
         el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#9889;</div><div class="no-data-text">Aucune donnee FPS. Connecte-toi a WoW.</div></div>`;
         return;
       }
 
-      const profile = fps.currentProfile || 'original';
+      const profile = live?.currentProfile || fps?.currentProfile || 'original';
       const profileColors = { performance: 'badge-green', balanced: 'badge-orange', ultra: 'badge-purple', original: 'badge-blue' };
+      const liveFPS = live?.liveFPS;
+      const latHome = live?.latencyHome;
+      const latWorld = live?.latencyWorld;
 
       let cvarsHtml = '';
-      if (fps.originalCVars) {
-        for (const [key, val] of Object.entries(fps.originalCVars)) {
+      const cvars = live?.originalCVars || fps?.originalCVars;
+      if (cvars) {
+        for (const [key, val] of Object.entries(cvars)) {
           cvarsHtml += `<div class="cvar-item"><span class="cvar-name">${key}</span><span class="cvar-value">${val}</span></div>`;
         }
       }
 
       el.innerHTML = `
         <div class="stat-grid">
+          ${liveFPS != null ? `
+          <div class="stat-card">
+            <div class="stat-label">FPS actuel (live)</div>
+            <div class="stat-value ${liveFPS >= 60 ? 'text-green' : liveFPS >= 30 ? 'text-orange' : 'text-red'}">${liveFPS}</div>
+          </div>` : ''}
+          ${latHome != null ? `
+          <div class="stat-card">
+            <div class="stat-label">Latence (Home / World)</div>
+            <div class="stat-value text-cyan">${latHome}<span class="text-muted" style="font-size:14px">ms</span></div>
+            <div class="stat-sub">World: ${latWorld || '?'}ms</div>
+          </div>` : ''}
           <div class="stat-card">
             <div class="stat-label">Profil actif</div>
             <div class="stat-value ${profile === 'performance' ? 'text-green' : profile === 'ultra' ? 'text-purple' : profile === 'balanced' ? 'text-orange' : 'text-blue'}">${capitalize(profile)}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">FPS cible</div>
-            <div class="stat-value text-cyan">${fps.targetFPS || 60}</div>
+            <div class="stat-value text-cyan">${live?.targetFPS || fps?.targetFPS || 60}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Mode Auto</div>
-            <div class="stat-value ${fps.autoMode ? 'text-green' : 'text-muted'}">${fps.autoMode ? 'Actif' : 'Inactif'}</div>
+            <div class="stat-value ${(live?.autoMode || fps?.autoMode) ? 'text-green' : 'text-muted'}">${(live?.autoMode || fps?.autoMode) ? 'Actif' : 'Inactif'}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">GC Auto</div>
-            <div class="stat-value ${fps.gcEnabled ? 'text-green' : 'text-muted'}">${fps.gcEnabled ? 'Actif' : 'Inactif'}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Position</div>
-            <div class="stat-value text-blue" style="font-size:18px">${fps.point || 'TOP'}</div>
-            <div class="stat-sub">x: ${fps.x || 0}, y: ${fps.y || 0}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Echelle UI</div>
-            <div class="stat-value text-purple">${fps.scale || 1.0}x</div>
+            <div class="stat-value ${(live?.gcEnabled || fps?.gcEnabled) ? 'text-green' : 'text-muted'}">${(live?.gcEnabled || fps?.gcEnabled) ? 'Actif' : 'Inactif'}</div>
           </div>
         </div>
 
@@ -1220,7 +1364,7 @@
 
     // ── Fishing ─────────────────────────────────────────────────────────────
     function renderFishing() {
-      const fish = addonData.fishing;
+      const fish = liveData?.fishing || addonData.fishing;
       const el = document.getElementById('fishingContent');
       if (!fish) {
         el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#127907;</div><div class="no-data-text">Aucune donnee de peche. Lance une session de peche !</div></div>`;
