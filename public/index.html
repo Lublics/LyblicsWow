@@ -658,6 +658,90 @@
     .diff-tab:hover { border-color: var(--border-light); }
     .diff-tab.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
 
+    /* ── Mounts ──────────────────────────────────────────────────────────────── */
+    .mount-progress {
+      margin-bottom: 16px;
+    }
+
+    .mount-progress-bar {
+      height: 24px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .mount-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+      border-radius: var(--radius);
+      transition: width 0.5s ease;
+    }
+
+    .mount-progress-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-shadow: 0 1px 2px rgba(0,0,0,.5);
+    }
+
+    .mount-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 6px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .mount-grid::-webkit-scrollbar { width: 6px; }
+    .mount-grid::-webkit-scrollbar-track { background: var(--bg-secondary); border-radius: 3px; }
+    .mount-grid::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    .mount-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .mount-item.owned { border-left: 3px solid var(--accent-green); }
+    .mount-item.missing { border-left: 3px solid var(--text-muted); opacity: 0.7; }
+
+    .mount-search {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: 13px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .mount-search:focus { border-color: var(--accent-blue); }
+
+    .mount-count {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
     /* ── No Data State ─────────────────────────────────────────────────────── */
     .no-data {
       text-align: center;
@@ -1059,7 +1143,6 @@
           wowIsRunning = msg.wowRunning || false;
           updateLastUpdate(msg.lastUpdate);
           updateAgentStatus();
-          updateLiveStatus();
           renderAll();
         } else if (msg.type === 'update') {
           addonData[msg.addon] = msg.data;
@@ -1074,7 +1157,6 @@
           agentIsConnected = msg.agentConnected || false;
           wowIsRunning = msg.wowRunning || false;
           updateAgentStatus();
-          updateLiveStatus();
           renderAll();
         }
       };
@@ -1124,21 +1206,8 @@
         dot.classList.remove('connected');
         text.textContent = 'Agent: Deconnecte';
       }
-
-      const wowDot = document.getElementById('liveStatus');
-      const wowText = document.getElementById('liveStatusText');
-      if (wowIsRunning) {
-        wowDot.classList.add('connected');
-        wowText.textContent = liveData?.player?.name
-          ? 'WoW: ' + liveData.player.name + ' - En jeu'
-          : 'WoW: En jeu';
-      } else if (agentIsConnected) {
-        wowDot.classList.remove('connected');
-        wowText.textContent = 'WoW: Non lance';
-      } else {
-        wowDot.classList.remove('connected');
-        wowText.textContent = 'WoW: Hors ligne';
-      }
+      // Also refresh the WoW status (single source of truth)
+      updateLiveStatus();
     }
 
     function updateLastUpdate(ts) {
@@ -1153,12 +1222,23 @@
       const text = document.getElementById('liveStatusText');
       // Consider "live" if we got data in the last 15 seconds
       const isLive = lastLiveUpdate && (Date.now() - new Date(lastLiveUpdate).getTime() < 15000);
+
       if (isLive && liveData?.player) {
         dot.classList.add('connected');
-        text.textContent = 'WoW: ' + (liveData.player.name || 'En ligne');
+        const name = liveData.player.name || 'En ligne';
+        const zone = liveData.player.zone;
+        text.textContent = zone ? `WoW: ${name} - ${zone}` : `WoW: ${name} - En jeu`;
+      } else if (wowIsRunning) {
+        dot.classList.add('connected');
+        text.textContent = liveData?.player?.name
+          ? 'WoW: ' + liveData.player.name + ' - En jeu'
+          : 'WoW: En jeu';
       } else if (liveData?.player) {
         dot.classList.remove('connected');
         text.textContent = 'WoW: Derniere sync';
+      } else if (agentIsConnected) {
+        dot.classList.remove('connected');
+        text.textContent = 'WoW: Non lance';
       } else {
         dot.classList.remove('connected');
         text.textContent = 'WoW: Hors ligne';
@@ -1186,8 +1266,11 @@
       }
 
       const p = liveData.player;
-      const f = liveData.fps;
       const isOnline = lastLiveUpdate && (Date.now() - new Date(lastLiveUpdate).getTime() < 15000);
+
+      // FPS/latency come from player fields (chat log bridge) or legacy fps object
+      const currentFPS = p.fps || (liveData.fps && liveData.fps.liveFPS) || null;
+      const latency = p.latencyHome || (liveData.fps && liveData.fps.latencyHome) || null;
 
       el.innerHTML = `
         <div class="live-banner">
@@ -1196,8 +1279,8 @@
           <div class="live-stats">
             <span>${p.class || '?'} ${p.level || '?'}</span>
             <span>${p.zone || '?'}${p.subzone ? ' - ' + p.subzone : ''}</span>
-            ${f ? `<span>FPS: <b class="${f.liveFPS >= 60 ? 'text-green' : f.liveFPS >= 30 ? 'text-orange' : 'text-red'}">${f.liveFPS}</b></span>` : ''}
-            ${f ? `<span>Latence: <b class="text-blue">${f.latencyHome}ms</b></span>` : ''}
+            ${currentFPS != null ? `<span>FPS: <b class="${currentFPS >= 60 ? 'text-green' : currentFPS >= 30 ? 'text-orange' : 'text-red'}">${currentFPS}</b></span>` : ''}
+            ${latency != null ? `<span>Latence: <b class="text-blue">${latency}ms</b></span>` : ''}
             <span>Or: <b class="text-orange">${(p.gold || 0).toLocaleString()}g</b></span>
           </div>
         </div>`;
@@ -1209,15 +1292,16 @@
       const grid = document.getElementById('overviewGrid');
       let html = '';
 
-      // FPS card - merge saved + live data
+      // FPS card - merge saved + live data (chat log bridge puts fps/latency in player)
       const fps = addonData.fps;
       const liveFps = liveData?.fps;
-      if (fps || liveFps) {
-        const fpsSource = liveFps || fps;
+      const livePlayer = liveData?.player;
+      if (fps || liveFps || livePlayer) {
+        const fpsSource = liveFps || fps || {};
         const profile = fpsSource.currentProfile || fps?.currentProfile || 'N/A';
         const profileColors = { performance: 'text-green', balanced: 'text-orange', ultra: 'text-purple', original: 'text-blue' };
-        const currentFPS = liveFps?.liveFPS;
-        const latency = liveFps?.latencyHome;
+        const currentFPS = livePlayer?.fps || liveFps?.liveFPS || null;
+        const latency = livePlayer?.latencyHome || liveFps?.latencyHome || null;
         html += `
           <div class="overview-card" onclick="navigate('fps')">
             <div class="overview-card-header">
@@ -1718,14 +1802,20 @@
       resultEl.innerHTML = '<div class="card" style="text-align:center"><span class="loading-spinner"></span> Recherche en cours...</div>';
 
       try {
-        const res = await fetch(`/api/character?name=${encodeURIComponent(name)}&realm=${encodeURIComponent(realm)}&version=${encodeURIComponent(version)}`);
-        const data = await res.json();
+        const params = `name=${encodeURIComponent(name)}&realm=${encodeURIComponent(realm)}&version=${encodeURIComponent(version)}`;
+        const [charRes, mountRes] = await Promise.all([
+          fetch(`/api/character?${params}`),
+          fetch(`/api/mounts?${params}`),
+        ]);
+        const data = await charRes.json();
+        const mountData = await mountRes.json();
 
         if (data.error) {
           resultEl.innerHTML = `<div class="card" style="color:var(--accent-red)">${data.error}</div>`;
           return;
         }
 
+        data.mounts = mountData.error ? null : mountData;
         renderCharacter(data, resultEl);
       } catch (e) {
         resultEl.innerHTML = `<div class="card" style="color:var(--accent-red)">Erreur: ${e.message}</div>`;
@@ -1815,6 +1905,53 @@
           </div>`;
       }
 
+      // Mounts
+      if (data.mounts) {
+        const m = data.mounts;
+        const pct = m.percentage || 0;
+
+        let ownedItems = '';
+        for (const mt of (m.owned || [])) {
+          ownedItems += `<div class="mount-item owned">${mt.name}</div>`;
+        }
+
+        let missingItems = '';
+        for (const mt of (m.missing || [])) {
+          missingItems += `<div class="mount-item missing">${mt.name}</div>`;
+        }
+
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Montures</span>
+              <span class="text-muted" style="font-size:13px">${m.ownedCount} / ${m.totalCount}</span>
+            </div>
+            <div class="mount-progress">
+              <div class="mount-progress-bar">
+                <div class="mount-progress-fill" style="width:${pct}%"></div>
+                <div class="mount-progress-text">${pct}% - ${m.ownedCount} obtenues sur ${m.totalCount}</div>
+              </div>
+            </div>
+            <div class="diff-tabs">
+              <div class="diff-tab active" onclick="switchDiff(this, 'mounts-owned')">Obtenues (${m.ownedCount})</div>
+              <div class="diff-tab" onclick="switchDiff(this, 'mounts-missing')">Manquantes (${m.missing?.length || 0})</div>
+            </div>
+            <input type="text" class="mount-search" placeholder="Rechercher une monture..." oninput="filterMounts(this)" />
+            <div class="diff-content" id="mounts-owned">
+              <div class="mount-count">${m.ownedCount} montures obtenues</div>
+              <div class="mount-grid" data-mount-list="owned">
+                ${ownedItems || '<div class="text-muted">Aucune monture</div>'}
+              </div>
+            </div>
+            <div class="diff-content hidden" id="mounts-missing">
+              <div class="mount-count">${m.missing?.length || 0} montures manquantes</div>
+              <div class="mount-grid" data-mount-list="missing">
+                ${missingItems || '<div class="text-muted">Toutes les montures obtenues !</div>'}
+              </div>
+            </div>
+          </div>`;
+      }
+
       el.innerHTML = html;
     }
 
@@ -1825,6 +1962,15 @@
       tab.classList.add('active');
       const target = document.getElementById(id);
       if (target) target.classList.remove('hidden');
+    }
+
+    function filterMounts(input) {
+      const query = input.value.toLowerCase();
+      const card = input.closest('.card');
+      card.querySelectorAll('.mount-item').forEach(item => {
+        const name = item.textContent.toLowerCase();
+        item.style.display = name.includes(query) ? '' : 'none';
+      });
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
