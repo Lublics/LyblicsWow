@@ -1,336 +1,110 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
-const chokidar = require('chokidar');
-const { WebSocketServer } = require('ws');
 const http = require('http');
 const https = require('https');
+const { WebSocketServer } = require('ws');
 
 // ── Configuration ──────────────────────────────────────────────────────────────
-const PORT = 3000;
-const WOW_PATH = 'C:/Program Files (x86)/World of Warcraft/_classic_';
-const SAVED_VARIABLES_PATH = WOW_PATH + '/WTF/Account/431680372#2/SavedVariables';
-const CHAT_LOG_PATH = WOW_PATH + '/Logs/WoWChatLog.txt';
+const PORT = process.env.PORT || 3000;
+const API_KEY = process.env.API_KEY || 'lyblics-sync-key-change-me';
 
-const BLIZZARD_CLIENT_ID = 'f42ca8de2b6e429e93aec93931c0f1a0';
-const BLIZZARD_CLIENT_SECRET = 'C15RyUFM4vEwiEq7B1k1vbfFvAOjH4qc';
+const BLIZZARD_CLIENT_ID = process.env.BLIZZARD_CLIENT_ID || 'f42ca8de2b6e429e93aec93931c0f1a0';
+const BLIZZARD_CLIENT_SECRET = process.env.BLIZZARD_CLIENT_SECRET || 'C15RyUFM4vEwiEq7B1k1vbfFvAOjH4qc';
 const BLIZZARD_LOCALE = 'fr_FR';
 const BLIZZARD_API_BASE = 'https://eu.api.blizzard.com';
 const BLIZZARD_AUTH_URL = 'https://oauth.battle.net/token';
 
-const SYNC_PREFIX = '##LYBLICS_SYNC##';
-const SYNC_SUFFIX = '##END_SYNC##';
-
-// Files to watch
-const ADDON_FILES = {
-  'LyblicsFishing.lua': 'fishing',
-  'LyblicsMining.lua': 'mining',
-  'LybicsFPS.lua': 'fps',
-  'LyblicsAutoRepair.lua': 'autorepair',
-  'LyblicsAutoSellJunk.lua': 'autosell',
-  'LyblicsBagSpaceTracker.lua': 'bagspace',
-  'LyblicsCustomNameplateColors.lua': 'nameplates',
-};
-
-// ── Lua Parser ─────────────────────────────────────────────────────────────────
-function parseLuaTable(content) {
-  content = content.trim();
-  const assignMatch = content.match(/^\w+\s*=\s*(.*)/s);
-  if (assignMatch) content = assignMatch[1].trim();
-  if (content === 'nil') return null;
-  try { return parseLuaValue(content, { pos: 0 }); }
-  catch (e) { console.error('Lua parse error:', e.message); return null; }
-}
-
-function parseLuaValue(str, state) {
-  skipWhitespace(str, state);
-  if (state.pos >= str.length) return null;
-  const ch = str[state.pos];
-  if (ch === '{') return parseLuaTableInner(str, state);
-  if (ch === '"' || ch === "'") return parseLuaString(str, state);
-  if (ch === '-' || (ch >= '0' && ch <= '9')) return parseLuaNumber(str, state);
-  if (str.substring(state.pos, state.pos + 4) === 'true') { state.pos += 4; return true; }
-  if (str.substring(state.pos, state.pos + 5) === 'false') { state.pos += 5; return false; }
-  if (str.substring(state.pos, state.pos + 3) === 'nil') { state.pos += 3; return null; }
-  const idMatch = str.substring(state.pos).match(/^[a-zA-Z_]\w*/);
-  if (idMatch) { state.pos += idMatch[0].length; return idMatch[0]; }
-  return null;
-}
-
-function parseLuaTableInner(str, state) {
-  state.pos++;
-  skipWhitespace(str, state);
-  const result = {};
-  let arrayIndex = 1;
-  let isArray = true;
-  while (state.pos < str.length && str[state.pos] !== '}') {
-    skipWhitespace(str, state);
-    if (state.pos >= str.length || str[state.pos] === '}') break;
-    if (str[state.pos] === '[') {
-      state.pos++;
-      skipWhitespace(str, state);
-      let key;
-      if (str[state.pos] === '"' || str[state.pos] === "'") { key = parseLuaString(str, state); isArray = false; }
-      else { key = parseLuaNumber(str, state); }
-      skipWhitespace(str, state);
-      if (str[state.pos] === ']') state.pos++;
-      skipWhitespace(str, state);
-      if (str[state.pos] === '=') state.pos++;
-      skipWhitespace(str, state);
-      result[key] = parseLuaValue(str, state);
-    } else if (str.substring(state.pos).match(/^[a-zA-Z_]\w*\s*=/)) {
-      const keyMatch = str.substring(state.pos).match(/^([a-zA-Z_]\w*)\s*=/);
-      state.pos += keyMatch[0].length;
-      isArray = false;
-      skipWhitespace(str, state);
-      result[keyMatch[1]] = parseLuaValue(str, state);
-    } else {
-      result[arrayIndex] = parseLuaValue(str, state);
-      arrayIndex++;
-    }
-    skipWhitespace(str, state);
-    if (str[state.pos] === ',') state.pos++;
-    skipWhitespace(str, state);
-  }
-  if (str[state.pos] === '}') state.pos++;
-  if (isArray && arrayIndex > 1) {
-    const arr = [];
-    for (let i = 1; i < arrayIndex; i++) arr.push(result[i]);
-    return arr;
-  }
-  return result;
-}
-
-function parseLuaString(str, state) {
-  const quote = str[state.pos];
-  state.pos++;
-  let result = '';
-  while (state.pos < str.length && str[state.pos] !== quote) {
-    if (str[state.pos] === '\\') {
-      state.pos++;
-      const esc = str[state.pos];
-      if (esc === 'n') result += '\n';
-      else if (esc === 't') result += '\t';
-      else if (esc === '\\') result += '\\';
-      else if (esc === quote) result += quote;
-      else result += esc;
-    } else {
-      result += str[state.pos];
-    }
-    state.pos++;
-  }
-  if (str[state.pos] === quote) state.pos++;
-  return result;
-}
-
-function parseLuaNumber(str, state) {
-  const match = str.substring(state.pos).match(/^-?\d+\.?\d*/);
-  if (match) { state.pos += match[0].length; return parseFloat(match[0]); }
-  return 0;
-}
-
-function skipWhitespace(str, state) {
-  while (state.pos < str.length) {
-    const ch = str[state.pos];
-    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') { state.pos++; }
-    else if (str[state.pos] === '-' && str[state.pos + 1] === '-') {
-      while (state.pos < str.length && str[state.pos] !== '\n') state.pos++;
-      if (str[state.pos] === '\n') state.pos++;
-    } else { break; }
-  }
-}
-
-// ── Addon Data Store ───────────────────────────────────────────────────────────
-const addonData = {};
-let liveData = null;    // Real-time data from LyblicsSync (via chat log)
+// ── Data Store ─────────────────────────────────────────────────────────────────
+let addonData = {};     // SavedVariables data (full)
+let liveData = null;    // Real-time data from LyblicsSync
 let lastUpdate = null;
 let lastLiveUpdate = null;
+let agentConnected = false;
+let agentLastSeen = null;
 
-function loadAddonFile(filename) {
-  const filepath = path.join(SAVED_VARIABLES_PATH, filename);
-  const key = ADDON_FILES[filename];
-  if (!key) return;
-  try {
-    if (!fs.existsSync(filepath)) { addonData[key] = null; return; }
-    const content = fs.readFileSync(filepath, 'utf-8');
-    addonData[key] = parseLuaTable(content);
-    lastUpdate = new Date().toISOString();
-    console.log(`  [SavedVars] Loaded ${key} from ${filename}`);
-  } catch (e) {
-    console.error(`  [SavedVars] Error loading ${filename}: ${e.message}`);
+// ── Express App ────────────────────────────────────────────────────────────────
+const app = express();
+const server = http.createServer(app);
+
+app.use(express.json({ limit: '5mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Auth Middleware ─────────────────────────────────────────────────────────────
+function requireApiKey(req, res, next) {
+  const key = req.headers['x-api-key'] || req.query.key;
+  if (key !== API_KEY) {
+    return res.status(401).json({ error: 'Invalid API key' });
   }
+  next();
 }
 
-function loadAllAddons() {
-  for (const filename of Object.keys(ADDON_FILES)) {
-    loadAddonFile(filename);
-  }
-}
+// ── API: Receive data from local agent ─────────────────────────────────────────
 
-// ── Mining data summarizer ─────────────────────────────────────────────────────
-function summarizeMiningData(raw) {
-  if (!raw) return null;
-  const summary = {
-    stats: raw.stats || { totalMined: 0, oreCounts: {} },
-    settings: raw.settings || {},
-    waypointIndex: raw.waypointIndex || {},
-    zones: {},
-  };
-  if (raw.nodes) {
-    for (const [zone, nodes] of Object.entries(raw.nodes)) {
-      if (Array.isArray(nodes)) {
-        const oreTypes = {};
-        for (const node of nodes) {
-          const name = node.name || node[3] || 'Unknown';
-          oreTypes[name] = (oreTypes[name] || 0) + 1;
-        }
-        summary.zones[zone] = { totalNodes: nodes.length, oreTypes };
-      }
-    }
-  }
-  return summary;
-}
-
-// ── Chat Log Watcher (Real-Time from LyblicsSync addon) ───────────────────────
-let chatLogSize = 0;
-let chatLogWatcher = null;
-let multipartBuffer = {};
-
-function startChatLogWatcher() {
-  // Check if log file exists
-  if (!fs.existsSync(CHAT_LOG_PATH)) {
-    console.log('  [ChatLog] WoWChatLog.txt not found yet - will watch for creation');
-    console.log('  [ChatLog] In-game: type /chatlog to enable, or LyblicsSync does it auto');
+// Agent pushes SavedVariables data
+app.post('/api/sync/addons', requireApiKey, (req, res) => {
+  const data = req.body;
+  if (!data || typeof data !== 'object') {
+    return res.status(400).json({ error: 'Invalid data' });
   }
 
-  // Watch the Logs directory for the chat log file
-  const logsDir = path.dirname(CHAT_LOG_PATH);
-  if (!fs.existsSync(logsDir)) {
-    try { fs.mkdirSync(logsDir, { recursive: true }); } catch (e) { /* ignore */ }
+  addonData = data;
+  lastUpdate = new Date().toISOString();
+  agentConnected = true;
+  agentLastSeen = Date.now();
+
+  console.log(`  [Sync] SavedVariables received (${Object.keys(data).length} addons)`);
+  broadcastFull();
+  res.json({ ok: true });
+});
+
+// Agent pushes live data (from chat log / LyblicsSync)
+app.post('/api/sync/live', requireApiKey, (req, res) => {
+  const data = req.body;
+  if (!data || typeof data !== 'object') {
+    return res.status(400).json({ error: 'Invalid data' });
   }
 
-  // Track file size to read only new content
-  try {
-    if (fs.existsSync(CHAT_LOG_PATH)) {
-      chatLogSize = fs.statSync(CHAT_LOG_PATH).size;
-      console.log(`  [ChatLog] Watching WoWChatLog.txt (${(chatLogSize / 1024).toFixed(1)} KB)`);
-    }
-  } catch (e) { /* ignore */ }
+  liveData = data;
+  lastLiveUpdate = new Date().toISOString();
+  agentConnected = true;
+  agentLastSeen = Date.now();
 
-  chatLogWatcher = chokidar.watch(CHAT_LOG_PATH, {
-    persistent: true,
-    ignoreInitial: true,
-    usePolling: true,
-    interval: 500,
-    awaitWriteFinish: false,
+  broadcastLiveUpdate(data);
+  res.json({ ok: true });
+});
+
+// Agent heartbeat
+app.post('/api/sync/heartbeat', requireApiKey, (req, res) => {
+  agentConnected = true;
+  agentLastSeen = Date.now();
+  res.json({ ok: true, serverTime: Date.now() });
+});
+
+// ── API: Frontend reads data ───────────────────────────────────────────────────
+
+app.get('/api/addons', (req, res) => {
+  res.json({
+    lastUpdate,
+    lastLiveUpdate,
+    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    addons: addonData,
+    live: liveData,
   });
+});
 
-  chatLogWatcher.on('add', (filepath) => {
-    console.log('  [ChatLog] WoWChatLog.txt created - now watching');
-    chatLogSize = 0;
+app.get('/api/status', (req, res) => {
+  res.json({
+    server: 'running',
+    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    agentLastSeen: agentLastSeen ? new Date(agentLastSeen).toISOString() : null,
+    lastUpdate,
+    lastLiveUpdate,
+    addonCount: Object.keys(addonData).length,
+    hasLiveData: liveData !== null,
   });
+});
 
-  chatLogWatcher.on('change', (filepath) => {
-    readNewChatLogEntries();
-  });
-
-  chatLogWatcher.on('error', (err) => {
-    // Silently handle - file might not exist yet
-  });
-}
-
-function readNewChatLogEntries() {
-  try {
-    const stat = fs.statSync(CHAT_LOG_PATH);
-    const newSize = stat.size;
-
-    if (newSize <= chatLogSize) {
-      // File was truncated/reset
-      chatLogSize = 0;
-    }
-
-    if (newSize === chatLogSize) return;
-
-    // Read only the new bytes
-    const fd = fs.openSync(CHAT_LOG_PATH, 'r');
-    const bufferSize = newSize - chatLogSize;
-    const buffer = Buffer.alloc(bufferSize);
-    fs.readSync(fd, buffer, 0, bufferSize, chatLogSize);
-    fs.closeSync(fd);
-    chatLogSize = newSize;
-
-    const newContent = buffer.toString('utf-8');
-    const lines = newContent.split('\n');
-
-    for (const line of lines) {
-      processChatLogLine(line);
-    }
-  } catch (e) {
-    // File might be locked by WoW, retry next cycle
-  }
-}
-
-function processChatLogLine(line) {
-  // Look for our sync markers
-  const prefixIdx = line.indexOf(SYNC_PREFIX);
-  if (prefixIdx === -1) return;
-
-  const afterPrefix = line.substring(prefixIdx + SYNC_PREFIX.length);
-
-  // Check for multi-part message
-  if (afterPrefix.startsWith('PART:')) {
-    const partMatch = afterPrefix.match(/^PART:(\d+)\/(\d+):(.*)/s);
-    if (!partMatch) return;
-
-    const partNum = parseInt(partMatch[1]);
-    const totalParts = parseInt(partMatch[2]);
-    let content = partMatch[3];
-
-    // Remove suffix if last part
-    const suffixIdx = content.indexOf(SYNC_SUFFIX);
-    if (suffixIdx !== -1) content = content.substring(0, suffixIdx);
-
-    if (!multipartBuffer.parts) {
-      multipartBuffer = { parts: {}, total: totalParts };
-    }
-    multipartBuffer.parts[partNum] = content;
-
-    // Check if complete
-    if (Object.keys(multipartBuffer.parts).length === totalParts) {
-      let fullJson = '';
-      for (let i = 1; i <= totalParts; i++) {
-        fullJson += multipartBuffer.parts[i] || '';
-      }
-      multipartBuffer = {};
-      processLiveSyncData(fullJson);
-    }
-  } else {
-    // Single message
-    let content = afterPrefix;
-    const suffixIdx = content.indexOf(SYNC_SUFFIX);
-    if (suffixIdx !== -1) content = content.substring(0, suffixIdx);
-    processLiveSyncData(content);
-  }
-}
-
-function processLiveSyncData(jsonStr) {
-  try {
-    const data = JSON.parse(jsonStr);
-    liveData = data;
-    lastLiveUpdate = new Date().toISOString();
-
-    console.log(`  [LIVE] Sync received - FPS: ${data.fps?.liveFPS || '?'}, ` +
-      `Fishing: ${data.fishing?.totalCatches || 0} catches, ` +
-      `Mining: ${data.mining?.totalMined || 0} mined`);
-
-    // Broadcast to all WebSocket clients
-    broadcastLiveUpdate(data);
-  } catch (e) {
-    // Malformed JSON, skip
-  }
-}
-
-// ── Blizzard API Proxy ─────────────────────────────────────────────────────────
+// ── API: Blizzard Proxy ────────────────────────────────────────────────────────
 let blizzardToken = null;
 let tokenExpiry = 0;
 
@@ -384,36 +158,6 @@ function slugify(text) {
     .replace(/^-|-$/g, '');
 }
 
-// ── Express App ────────────────────────────────────────────────────────────────
-const app = express();
-const server = http.createServer(app);
-
-app.use(express.static(path.join(__dirname, 'public')));
-
-// API: Get all addon data (SavedVariables + live)
-app.get('/api/addons', (req, res) => {
-  const data = { ...addonData };
-  if (data.mining) data.mining = summarizeMiningData(data.mining);
-  res.json({
-    lastUpdate,
-    lastLiveUpdate,
-    savedVariablesPath: SAVED_VARIABLES_PATH,
-    addons: data,
-    live: liveData,
-  });
-});
-
-// API: Force refresh from SavedVariables
-app.post('/api/refresh', (req, res) => {
-  console.log('  [API] Manual refresh triggered');
-  loadAllAddons();
-  const data = { ...addonData };
-  if (data.mining) data.mining = summarizeMiningData(data.mining);
-  broadcastFull();
-  res.json({ ok: true, lastUpdate });
-});
-
-// API: Blizzard character progression
 app.get('/api/character', async (req, res) => {
   const { realm, name, version = 'classic' } = req.query;
   if (!realm || !name) return res.json({ error: 'realm et name requis' });
@@ -493,7 +237,6 @@ app.get('/api/character', async (req, res) => {
   } catch (e) { res.json({ error: e.message }); }
 });
 
-// API: Blizzard mounts
 app.get('/api/mounts', async (req, res) => {
   const { realm, name, version = 'classic' } = req.query;
   if (!realm || !name) return res.json({ error: 'realm et name requis' });
@@ -541,28 +284,20 @@ const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws) => {
   console.log('  [WS] Client connected');
-
-  // Send full SavedVariables data
-  const data = { ...addonData };
-  if (data.mining) data.mining = summarizeMiningData(data.mining);
-  ws.send(JSON.stringify({ type: 'full', lastUpdate, lastLiveUpdate, addons: data, live: liveData }));
-
+  ws.send(JSON.stringify({
+    type: 'full', lastUpdate, lastLiveUpdate,
+    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    addons: addonData, live: liveData,
+  }));
   ws.on('close', () => console.log('  [WS] Client disconnected'));
 });
 
 function broadcastFull() {
-  const data = { ...addonData };
-  if (data.mining) data.mining = summarizeMiningData(data.mining);
-  const msg = JSON.stringify({ type: 'full', lastUpdate, lastLiveUpdate, addons: data, live: liveData });
-  for (const client of wss.clients) {
-    if (client.readyState === 1) client.send(msg);
-  }
-}
-
-function broadcastSavedVarUpdate(addonKey) {
-  const payload = { type: 'update', addon: addonKey, lastUpdate };
-  payload.data = addonKey === 'mining' ? summarizeMiningData(addonData.mining) : addonData[addonKey];
-  const msg = JSON.stringify(payload);
+  const msg = JSON.stringify({
+    type: 'full', lastUpdate, lastLiveUpdate,
+    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    addons: addonData, live: liveData,
+  });
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(msg);
   }
@@ -575,51 +310,27 @@ function broadcastLiveUpdate(data) {
   }
 }
 
-// ── File Watcher (SavedVariables - polling mode for Windows) ───────────────────
-loadAllAddons();
-
-const svWatcher = chokidar.watch(SAVED_VARIABLES_PATH, {
-  persistent: true,
-  ignoreInitial: true,
-  usePolling: true,          // Reliable on Windows, especially with # in path
-  interval: 2000,            // Check every 2s
-  awaitWriteFinish: {
-    stabilityThreshold: 1000,
-    pollInterval: 200,
-  },
-});
-
-svWatcher.on('change', (filepath) => {
-  const filename = path.basename(filepath);
-  if (ADDON_FILES[filename]) {
-    console.log(`  [SavedVars] Changed: ${filename}`);
-    loadAddonFile(filename);
-    broadcastSavedVarUpdate(ADDON_FILES[filename]);
+// ── Agent timeout check ────────────────────────────────────────────────────────
+setInterval(() => {
+  if (agentConnected && Date.now() - (agentLastSeen || 0) > 30000) {
+    agentConnected = false;
+    console.log('  [Agent] Connection timed out');
+    broadcastFull();
   }
-});
-
-svWatcher.on('error', (err) => {
-  console.error('  [SavedVars] Watcher error:', err.message);
-});
-
-// ── Chat Log Watcher (LyblicsSync real-time data) ─────────────────────────────
-startChatLogWatcher();
+}, 10000);
 
 // ── Start Server ───────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
   console.log('');
-  console.log('  ╔══════════════════════════════════════════════╗');
-  console.log('  ║       Lyblics WoW Tracker - Running!         ║');
-  console.log('  ╠══════════════════════════════════════════════╣');
-  console.log(`  ║  Dashboard:  http://localhost:${PORT}             ║`);
-  console.log('  ║                                              ║');
-  console.log('  ║  Data sources:                               ║');
-  console.log('  ║   1. SavedVariables (on /reload or logout)   ║');
-  console.log('  ║   2. Chat Log (real-time via LyblicsSync)    ║');
-  console.log('  ╚══════════════════════════════════════════════╝');
+  console.log('  ╔══════════════════════════════════════════════════╗');
+  console.log('  ║        Lyblics WoW Tracker - Server              ║');
+  console.log('  ╠══════════════════════════════════════════════════╣');
+  console.log(`  ║  Dashboard:  http://localhost:${PORT}                 ║`);
+  console.log('  ║  Mode:       Remote (VPS)                        ║');
+  console.log('  ║                                                  ║');
+  console.log('  ║  Waiting for agent connection from your PC...    ║');
+  console.log('  ╚══════════════════════════════════════════════════╝');
   console.log('');
-  console.log(`  SavedVariables: ${SAVED_VARIABLES_PATH}`);
-  console.log(`  Chat Log:       ${CHAT_LOG_PATH}`);
-  console.log(`  Addons loaded:  ${Object.keys(addonData).filter(k => addonData[k] !== null).length}`);
+  console.log(`  API Key: ${API_KEY.slice(0, 8)}...`);
   console.log('');
 });

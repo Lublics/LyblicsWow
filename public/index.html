@@ -857,7 +857,11 @@
       <div class="sidebar-footer">
         <div class="connection-status">
           <span class="status-dot" id="wsStatus"></span>
-          <span id="wsStatusText">Connexion...</span>
+          <span id="wsStatusText">Serveur...</span>
+        </div>
+        <div class="connection-status" style="margin-top:6px">
+          <span class="status-dot" id="agentStatus"></span>
+          <span id="agentStatusText">Agent: Deconnecte</span>
         </div>
         <div class="connection-status" style="margin-top:6px">
           <span class="status-dot" id="liveStatus"></span>
@@ -1020,21 +1024,23 @@
     // ── WebSocket ───────────────────────────────────────────────────────────
     let ws;
     let wsRetry = 0;
+    let agentIsConnected = false;
 
     function connectWS() {
-      ws = new WebSocket('ws://' + location.host);
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(proto + '//' + location.host);
 
       ws.onopen = () => {
         wsConnected = true;
         wsRetry = 0;
         document.getElementById('wsStatus').classList.add('connected');
-        document.getElementById('wsStatusText').textContent = 'Connecte';
+        document.getElementById('wsStatusText').textContent = 'Serveur: OK';
       };
 
       ws.onclose = () => {
         wsConnected = false;
         document.getElementById('wsStatus').classList.remove('connected');
-        document.getElementById('wsStatusText').textContent = 'Deconnecte';
+        document.getElementById('wsStatusText').textContent = 'Serveur: Deconnecte';
         // Reconnect
         const delay = Math.min(1000 * Math.pow(2, wsRetry), 30000);
         wsRetry++;
@@ -1048,7 +1054,9 @@
           addonData = msg.addons || {};
           liveData = msg.live || null;
           lastLiveUpdate = msg.lastLiveUpdate || null;
+          agentIsConnected = msg.agentConnected || false;
           updateLastUpdate(msg.lastUpdate);
+          updateAgentStatus();
           updateLiveStatus();
           renderAll();
         } else if (msg.type === 'update') {
@@ -1082,9 +1090,30 @@
 
     async function manualRefresh() {
       try {
-        await fetch('/api/refresh', { method: 'POST' });
+        const res = await fetch('/api/addons');
+        const data = await res.json();
+        addonData = data.addons || {};
+        liveData = data.live || null;
+        lastLiveUpdate = data.lastLiveUpdate || null;
+        agentIsConnected = data.agentConnected || false;
+        updateLastUpdate(data.lastUpdate);
+        updateAgentStatus();
+        updateLiveStatus();
+        renderAll();
       } catch (e) {
         console.error('Refresh failed:', e);
+      }
+    }
+
+    function updateAgentStatus() {
+      const dot = document.getElementById('agentStatus');
+      const text = document.getElementById('agentStatusText');
+      if (agentIsConnected) {
+        dot.classList.add('connected');
+        text.textContent = 'Agent: Connecte';
+      } else {
+        dot.classList.remove('connected');
+        text.textContent = 'Agent: Deconnecte';
       }
     }
 

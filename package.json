@@ -5,10 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js --dev"
+    "agent": "node agent.js"
   },
   "dependencies": {
-    "chokidar": "^3.6.0",
     "express": "^4.21.0",
     "ws": "^8.18.0"
   }
