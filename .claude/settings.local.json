@@ -14,7 +14,8 @@
       "Bash(wc:*)",
       "Bash(tasklist:*)",
       "Bash(curl:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(echo KILLED:*)"
     ]
   }
 }

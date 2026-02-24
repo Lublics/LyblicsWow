@@ -12,6 +12,14 @@ const https = require('https');
 const http = require('http');
 const { execSync } = require('child_process');
 
+// ── Crash Protection ────────────────────────────────────────────────────────────
+process.on('uncaughtException', (err) => {
+  logError('Uncaught Exception: ' + err.message);
+});
+process.on('unhandledRejection', (err) => {
+  logError('Unhandled Rejection: ' + (err && err.message || err));
+});
+
 // ── Configuration ──────────────────────────────────────────────────────────────
 const SERVER_URL = process.env.SERVER_URL || 'https://wow.lyblics.com';
 const API_KEY = process.env.API_KEY || 'lyblics-sync-key-change-me';
@@ -22,6 +30,7 @@ const SAVED_VARIABLES_PATH = WOW_PATH + '/WTF/Account/431680372#2/SavedVariables
 const SV_POLL_INTERVAL = 2000;       // Check SavedVariables every 2s
 const HEARTBEAT_INTERVAL = 5000;     // Heartbeat every 5s
 const WOW_DETECT_INTERVAL = 3000;    // Check if WoW is running every 3s
+const RESEND_INTERVAL = 30000;       // Re-send all cached data every 30s
 
 // SavedVariables files to watch
 const ADDON_FILES = {
@@ -37,11 +46,12 @@ const ADDON_FILES = {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let wowRunning = false;
-let wowWasRunning = false;
 let serverReachable = false;
 let lastSyncTs = 0;
 let cachedAddonData = {};
+let cachedLiveData = null;
 const fileModTimes = {};
+let heartbeatCount = 0;
 
 // ── Lua Parser ─────────────────────────────────────────────────────────────────
 function parseLuaTable(content) {
@@ -158,7 +168,7 @@ function isWowRunning() {
     const output = execSync('tasklist /FI "IMAGENAME eq WowClassic.exe" /NH 2>NUL', {
       encoding: 'utf-8',
       windowsHide: true,
-      timeout: 3000,
+      timeout: 5000,
     });
     return output.includes('WowClassic.exe');
   } catch {
@@ -167,137 +177,167 @@ function isWowRunning() {
 }
 
 function checkWowProcess() {
-  const wasRunning = wowRunning;
-  wowRunning = isWowRunning();
+  try {
+    const wasRunning = wowRunning;
+    wowRunning = isWowRunning();
 
-  if (wowRunning && !wasRunning) {
-    log('WoW Classic detecte - en jeu !');
-    // Force re-check all files since WoW just started
-    for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
-    // Notify server immediately
-    sendHeartbeat();
+    if (wowRunning && !wasRunning) {
+      log('WoW Classic detecte - en jeu !');
+      for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
+      sendHeartbeat();
+    }
+
+    if (!wowRunning && wasRunning) {
+      log('WoW Classic ferme - sync finale...');
+      for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
+      setTimeout(() => checkAndSyncAddons(), 500);
+      setTimeout(() => checkAndSyncAddons(), 2000);
+      sendHeartbeat();
+    }
+  } catch (e) {
+    logError('checkWowProcess error: ' + e.message);
   }
-
-  if (!wowRunning && wasRunning) {
-    log('WoW Classic ferme - sync finale...');
-    // WoW just closed = SavedVariables were just written
-    // Force re-check all files immediately
-    for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
-    setTimeout(checkAndSyncAddons, 500);
-    setTimeout(checkAndSyncAddons, 2000);
-    // Notify server immediately
-    sendHeartbeat();
-  }
-
-  wowWasRunning = wasRunning;
 }
 
 // ── HTTP Client ────────────────────────────────────────────────────────────────
 function sendToServer(endpoint, data) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify(data);
-    const url = new URL(endpoint, SERVER_URL);
-    const isHttps = url.protocol === 'https:';
-    const mod = isHttps ? https : http;
+    try {
+      const body = JSON.stringify(data);
+      const url = new URL(endpoint, SERVER_URL);
+      const isHttps = url.protocol === 'https:';
+      const mod = isHttps ? https : http;
 
-    const req = mod.request(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        'X-API-Key': API_KEY,
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        const wasReachable = serverReachable;
-        if (res.statusCode === 200) {
-          serverReachable = true;
-          if (!wasReachable) log('Serveur connecte !');
-          try { resolve(JSON.parse(data)); } catch { resolve(data); }
-        } else {
-          reject(new Error(`HTTP ${res.statusCode}`));
-        }
+      const req = mod.request(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          'X-API-Key': API_KEY,
+        },
+      }, (res) => {
+        let responseData = '';
+        res.on('data', c => responseData += c);
+        res.on('end', () => {
+          const wasReachable = serverReachable;
+          if (res.statusCode === 200) {
+            serverReachable = true;
+            if (!wasReachable) log('Serveur connecte !');
+            try { resolve(JSON.parse(responseData)); } catch { resolve(responseData); }
+          } else {
+            logError(`HTTP ${res.statusCode} on ${endpoint}`);
+            reject(new Error(`HTTP ${res.statusCode}`));
+          }
+        });
       });
-    });
 
-    req.on('error', (e) => {
-      if (serverReachable) {
-        serverReachable = false;
-        logError('Serveur injoignable - retry auto...');
-      }
+      req.on('error', (e) => {
+        if (serverReachable) {
+          serverReachable = false;
+          logError('Serveur injoignable - retry auto...');
+        }
+        reject(e);
+      });
+      req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
+      req.write(body);
+      req.end();
+    } catch (e) {
+      logError('sendToServer error: ' + e.message);
       reject(e);
-    });
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
-    req.write(body);
-    req.end();
+    }
   });
 }
 
 // ── SavedVariables Sync ────────────────────────────────────────────────────────
 function checkAndSyncAddons() {
-  const addonPayload = {};
-  const livePayload = {};
-  let addonChanged = false;
-  let liveChanged = false;
+  try {
+    const addonPayload = {};
+    const livePayload = {};
+    let addonChanged = false;
+    let liveChanged = false;
 
-  for (const [filename, key] of Object.entries(ADDON_FILES)) {
-    const filepath = path.join(SAVED_VARIABLES_PATH, filename);
-    try {
-      if (!fs.existsSync(filepath)) continue;
+    for (const [filename, key] of Object.entries(ADDON_FILES)) {
+      const filepath = path.join(SAVED_VARIABLES_PATH, filename);
+      try {
+        if (!fs.existsSync(filepath)) continue;
 
-      const stat = fs.statSync(filepath);
-      const modTime = stat.mtimeMs;
+        const stat = fs.statSync(filepath);
+        const modTime = stat.mtimeMs;
 
-      if (fileModTimes[filename] && fileModTimes[filename] === modTime) continue;
-      fileModTimes[filename] = modTime;
+        if (fileModTimes[filename] && fileModTimes[filename] === modTime) continue;
+        fileModTimes[filename] = modTime;
 
-      const content = fs.readFileSync(filepath, 'utf-8');
-      const parsed = parseLuaTable(content);
+        const content = fs.readFileSync(filepath, 'utf-8');
+        const parsed = parseLuaTable(content);
 
-      if (key === 'sync') {
-        if (parsed && parsed.ts && parsed.ts !== lastSyncTs) {
-          lastSyncTs = parsed.ts;
-          Object.assign(livePayload, parsed);
-          liveChanged = true;
+        if (key === 'sync') {
+          if (parsed && parsed.ts && parsed.ts !== lastSyncTs) {
+            lastSyncTs = parsed.ts;
+            Object.assign(livePayload, parsed);
+            liveChanged = true;
+            cachedLiveData = parsed;
+          }
+        } else if (key === 'mining') {
+          addonPayload[key] = summarizeMining(parsed);
+          addonChanged = true;
+        } else {
+          addonPayload[key] = parsed;
+          addonChanged = true;
         }
-      } else if (key === 'mining') {
-        addonPayload[key] = summarizeMining(parsed);
-        addonChanged = true;
-      } else {
-        addonPayload[key] = parsed;
-        addonChanged = true;
+      } catch (e) {
+        // File locked or parse error - skip silently
       }
-    } catch (e) {
-      // File locked or parse error
     }
-  }
 
-  if (addonChanged) {
-    for (const [k, v] of Object.entries(addonPayload)) cachedAddonData[k] = v;
-    const names = Object.keys(addonPayload);
-    sendToServer('/api/sync/addons', cachedAddonData)
-      .then(() => log(`Synced: ${names.join(', ')}`))
-      .catch(() => {});
-  }
+    if (addonChanged) {
+      for (const [k, v] of Object.entries(addonPayload)) cachedAddonData[k] = v;
+      const names = Object.keys(addonPayload);
+      sendToServer('/api/sync/addons', cachedAddonData)
+        .then(() => log(`Synced: ${names.join(', ')}`))
+        .catch((e) => logError(`Sync addons failed: ${e.message}`));
+    }
 
-  if (liveChanged) {
-    sendToServer('/api/sync/live', livePayload)
-      .then(() => {
-        const p = livePayload.player;
-        log(`Live: ${p?.name || '?'} | FPS ${p?.fps || '?'} | ${p?.zone || '?'}`);
-      })
-      .catch(() => {});
+    if (liveChanged) {
+      sendToServer('/api/sync/live', livePayload)
+        .then(() => {
+          const p = livePayload.player;
+          log(`Live: ${p?.name || '?'} | FPS ${p?.fps || '?'} | ${p?.zone || '?'}`);
+        })
+        .catch((e) => logError(`Sync live failed: ${e.message}`));
+    }
+  } catch (e) {
+    logError('checkAndSyncAddons error: ' + e.message);
   }
 }
 
-// ── Heartbeat (envoie aussi le statut WoW) ─────────────────────────────────────
+// ── Periodic re-send of cached data ─────────────────────────────────────────────
+function resendCachedData() {
+  try {
+    if (Object.keys(cachedAddonData).length > 0) {
+      sendToServer('/api/sync/addons', cachedAddonData)
+        .catch(() => {});
+    }
+    if (cachedLiveData) {
+      sendToServer('/api/sync/live', cachedLiveData)
+        .catch(() => {});
+    }
+  } catch (e) {
+    logError('resendCachedData error: ' + e.message);
+  }
+}
+
+// ── Heartbeat ─────────────────────────────────────────────────────────────────
 function sendHeartbeat() {
+  heartbeatCount++;
   sendToServer('/api/sync/heartbeat', {
     time: Date.now(),
     wowRunning,
-  }).catch(() => {});
+  })
+    .catch((e) => {
+      if (heartbeatCount % 12 === 0) {
+        logError('Heartbeat failed: ' + e.message);
+      }
+    });
 }
 
 // ── Logging ────────────────────────────────────────────────────────────────────
@@ -306,7 +346,7 @@ function log(msg) {
 }
 
 function logError(msg) {
-  console.error(`  [${new Date().toLocaleTimeString()}] ${msg}`);
+  console.error(`  [${new Date().toLocaleTimeString()}] ERROR: ${msg}`);
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
@@ -326,12 +366,18 @@ log(wowRunning ? 'WoW Classic detecte !' : 'WoW Classic non lance - en attente..
 for (const f of Object.keys(ADDON_FILES)) fileModTimes[f] = 0;
 checkAndSyncAddons();
 
-// Initial heartbeat (send WoW status immediately)
+// Initial heartbeat
 sendHeartbeat();
 
 // Start all loops
 setInterval(checkAndSyncAddons, SV_POLL_INTERVAL);
 setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
 setInterval(checkWowProcess, WOW_DETECT_INTERVAL);
+setInterval(resendCachedData, RESEND_INTERVAL);
 
-log('Agent actif - sync automatique');
+log('Agent actif - sync automatique (pid: ' + process.pid + ')');
+
+// Keep alive indicator every 5 minutes
+setInterval(() => {
+  log(`Agent actif | WoW: ${wowRunning ? 'OUI' : 'non'} | Serveur: ${serverReachable ? 'OK' : 'KO'} | Addons: ${Object.keys(cachedAddonData).length}`);
+}, 300000);
