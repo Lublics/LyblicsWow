@@ -21,6 +21,12 @@ let lastUpdate = null;
 let lastLiveUpdate = null;
 let agentConnected = false;
 let agentLastSeen = null;
+let wowRunning = false;
+
+function getStatus() {
+  const isAgentConnected = agentConnected && (Date.now() - (agentLastSeen || 0) < 30000);
+  return { agentConnected: isAgentConnected, wowRunning: isAgentConnected && wowRunning };
+}
 
 // ── Express App ────────────────────────────────────────────────────────────────
 const app = express();
@@ -73,10 +79,19 @@ app.post('/api/sync/live', requireApiKey, (req, res) => {
   res.json({ ok: true });
 });
 
-// Agent heartbeat
+// Agent heartbeat (includes WoW process status)
 app.post('/api/sync/heartbeat', requireApiKey, (req, res) => {
+  const wasConnected = agentConnected;
+  const wasWowRunning = wowRunning;
   agentConnected = true;
   agentLastSeen = Date.now();
+  wowRunning = req.body.wowRunning || false;
+
+  // Broadcast if status changed
+  if (!wasConnected || wasWowRunning !== wowRunning) {
+    broadcastStatus();
+  }
+
   res.json({ ok: true, serverTime: Date.now() });
 });
 
@@ -86,7 +101,7 @@ app.get('/api/addons', (req, res) => {
   res.json({
     lastUpdate,
     lastLiveUpdate,
-    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    ...getStatus(),
     addons: addonData,
     live: liveData,
   });
@@ -95,7 +110,7 @@ app.get('/api/addons', (req, res) => {
 app.get('/api/status', (req, res) => {
   res.json({
     server: 'running',
-    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    ...getStatus(),
     agentLastSeen: agentLastSeen ? new Date(agentLastSeen).toISOString() : null,
     lastUpdate,
     lastLiveUpdate,
@@ -286,7 +301,7 @@ wss.on('connection', (ws) => {
   console.log('  [WS] Client connected');
   ws.send(JSON.stringify({
     type: 'full', lastUpdate, lastLiveUpdate,
-    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    ...getStatus(),
     addons: addonData, live: liveData,
   }));
   ws.on('close', () => console.log('  [WS] Client disconnected'));
@@ -295,7 +310,7 @@ wss.on('connection', (ws) => {
 function broadcastFull() {
   const msg = JSON.stringify({
     type: 'full', lastUpdate, lastLiveUpdate,
-    agentConnected: agentConnected && (Date.now() - (agentLastSeen || 0) < 30000),
+    ...getStatus(),
     addons: addonData, live: liveData,
   });
   for (const client of wss.clients) {
@@ -310,12 +325,20 @@ function broadcastLiveUpdate(data) {
   }
 }
 
+function broadcastStatus() {
+  const msg = JSON.stringify({ type: 'status', ...getStatus() });
+  for (const client of wss.clients) {
+    if (client.readyState === 1) client.send(msg);
+  }
+}
+
 // ── Agent timeout check ────────────────────────────────────────────────────────
 setInterval(() => {
   if (agentConnected && Date.now() - (agentLastSeen || 0) > 30000) {
     agentConnected = false;
+    wowRunning = false;
     console.log('  [Agent] Connection timed out');
-    broadcastFull();
+    broadcastStatus();
   }
 }, 10000);
 

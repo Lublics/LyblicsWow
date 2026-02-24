@@ -1,14 +1,16 @@
 /**
  * Lyblics WoW Agent
- * Tourne sur ton PC - lit les données WoW et les envoie à wow.lyblics.com
+ * Tourne sur ton PC - detecte WoW, lit les donnees, envoie a wow.lyblics.com
  *
  * Usage: node agent.js
+ * Auto-start: install-agent.bat (ajoute au demarrage Windows)
  */
 
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const { execSync } = require('child_process');
 
 // ── Configuration ──────────────────────────────────────────────────────────────
 const SERVER_URL = process.env.SERVER_URL || 'https://wow.lyblics.com';
@@ -16,16 +18,12 @@ const API_KEY = process.env.API_KEY || 'lyblics-sync-key-change-me';
 
 const WOW_PATH = 'C:/Program Files (x86)/World of Warcraft/_classic_';
 const SAVED_VARIABLES_PATH = WOW_PATH + '/WTF/Account/431680372#2/SavedVariables';
-const CHAT_LOG_PATH = WOW_PATH + '/Logs/WoWChatLog.txt';
 
-const SYNC_PREFIX = '##LYBLICS_SYNC##';
-const SYNC_SUFFIX = '##END_SYNC##';
+const SV_POLL_INTERVAL = 2000;       // Check SavedVariables every 2s
+const HEARTBEAT_INTERVAL = 10000;    // Heartbeat every 10s
+const WOW_DETECT_INTERVAL = 5000;    // Check if WoW is running every 5s
 
-const SV_POLL_INTERVAL = 3000;     // Check SavedVariables every 3s
-const HEARTBEAT_INTERVAL = 15000;  // Heartbeat every 15s
-const CHATLOG_POLL_INTERVAL = 500; // Check chat log every 500ms
-
-// Files to watch
+// SavedVariables files to watch
 const ADDON_FILES = {
   'LyblicsFishing.lua': 'fishing',
   'LyblicsMining.lua': 'mining',
@@ -34,7 +32,16 @@ const ADDON_FILES = {
   'LyblicsAutoSellJunk.lua': 'autosell',
   'LyblicsBagSpaceTracker.lua': 'bagspace',
   'LyblicsCustomNameplateColors.lua': 'nameplates',
+  'LyblicsSync.lua': 'sync',
 };
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let wowRunning = false;
+let wowWasRunning = false;
+let serverReachable = false;
+let lastSyncTs = 0;
+let cachedAddonData = {};
+const fileModTimes = {};
 
 // ── Lua Parser ─────────────────────────────────────────────────────────────────
 function parseLuaTable(content) {
@@ -145,6 +152,42 @@ function summarizeMining(raw) {
   return summary;
 }
 
+// ── WoW Process Detection ──────────────────────────────────────────────────────
+function isWowRunning() {
+  try {
+    const output = execSync('tasklist /FI "IMAGENAME eq WowClassic.exe" /NH 2>NUL', {
+      encoding: 'utf-8',
+      windowsHide: true,
+      timeout: 3000,
+    });
+    return output.includes('WowClassic.exe');
+  } catch {
+    return false;
+  }
+}
+
+function checkWowProcess() {
+  const wasRunning = wowRunning;
+  wowRunning = isWowRunning();
+
+  if (wowRunning && !wasRunning) {
+    log('WoW Classic detecte - en jeu !');
+    // Force re-check all files since WoW just started
+    for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
+  }
+
+  if (!wowRunning && wasRunning) {
+    log('WoW Classic ferme - sync finale...');
+    // WoW just closed = SavedVariables were just written
+    // Force re-check all files immediately
+    for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
+    setTimeout(checkAndSyncAddons, 500);
+    setTimeout(checkAndSyncAddons, 2000);
+  }
+
+  wowWasRunning = wasRunning;
+}
+
 // ── HTTP Client ────────────────────────────────────────────────────────────────
 function sendToServer(endpoint, data) {
   return new Promise((resolve, reject) => {
@@ -164,163 +207,93 @@ function sendToServer(endpoint, data) {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
+        const wasReachable = serverReachable;
         if (res.statusCode === 200) {
-          resolve(JSON.parse(data));
+          serverReachable = true;
+          if (!wasReachable) log('Serveur connecte !');
+          try { resolve(JSON.parse(data)); } catch { resolve(data); }
         } else {
-          reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+          reject(new Error(`HTTP ${res.statusCode}`));
         }
       });
     });
 
-    req.on('error', reject);
+    req.on('error', (e) => {
+      if (serverReachable) {
+        serverReachable = false;
+        logError('Serveur injoignable - retry auto...');
+      }
+      reject(e);
+    });
     req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
     req.write(body);
     req.end();
   });
 }
 
-// ── SavedVariables Watcher ─────────────────────────────────────────────────────
-const fileModTimes = {};
-let lastSentHash = '';
-
-function loadAllAddons() {
-  const data = {};
-  let changed = false;
+// ── SavedVariables Sync ────────────────────────────────────────────────────────
+function checkAndSyncAddons() {
+  const addonPayload = {};
+  const livePayload = {};
+  let addonChanged = false;
+  let liveChanged = false;
 
   for (const [filename, key] of Object.entries(ADDON_FILES)) {
     const filepath = path.join(SAVED_VARIABLES_PATH, filename);
     try {
-      if (!fs.existsSync(filepath)) { data[key] = null; continue; }
+      if (!fs.existsSync(filepath)) continue;
 
       const stat = fs.statSync(filepath);
       const modTime = stat.mtimeMs;
 
-      // Check if file was modified
-      if (fileModTimes[filename] && fileModTimes[filename] === modTime) {
-        data[key] = '__unchanged__';
-        continue;
-      }
-
+      if (fileModTimes[filename] && fileModTimes[filename] === modTime) continue;
       fileModTimes[filename] = modTime;
+
       const content = fs.readFileSync(filepath, 'utf-8');
       const parsed = parseLuaTable(content);
 
-      // Summarize mining to avoid sending 1.4MB
-      if (key === 'mining') {
-        data[key] = summarizeMining(parsed);
+      if (key === 'sync') {
+        if (parsed && parsed.ts && parsed.ts !== lastSyncTs) {
+          lastSyncTs = parsed.ts;
+          Object.assign(livePayload, parsed);
+          liveChanged = true;
+        }
+      } else if (key === 'mining') {
+        addonPayload[key] = summarizeMining(parsed);
+        addonChanged = true;
       } else {
-        data[key] = parsed;
+        addonPayload[key] = parsed;
+        addonChanged = true;
       }
-      changed = true;
     } catch (e) {
-      data[key] = null;
+      // File locked or parse error
     }
   }
 
-  return { data, changed };
-}
-
-let cachedAddonData = {};
-
-async function checkAndSyncAddons() {
-  const { data, changed } = loadAllAddons();
-
-  if (!changed) return;
-
-  // Merge with cached (replace only changed addons)
-  for (const [key, val] of Object.entries(data)) {
-    if (val !== '__unchanged__') {
-      cachedAddonData[key] = val;
-    }
+  if (addonChanged) {
+    for (const [k, v] of Object.entries(addonPayload)) cachedAddonData[k] = v;
+    const names = Object.keys(addonPayload);
+    sendToServer('/api/sync/addons', cachedAddonData)
+      .then(() => log(`Synced: ${names.join(', ')}`))
+      .catch(() => {});
   }
 
-  try {
-    await sendToServer('/api/sync/addons', cachedAddonData);
-    const names = Object.entries(data).filter(([, v]) => v !== '__unchanged__' && v !== null).map(([k]) => k);
-    if (names.length > 0) {
-      log(`SavedVars synced: ${names.join(', ')}`);
-    }
-  } catch (e) {
-    logError(`Sync failed: ${e.message}`);
+  if (liveChanged) {
+    sendToServer('/api/sync/live', livePayload)
+      .then(() => {
+        const p = livePayload.player;
+        log(`Live: ${p?.name || '?'} | FPS ${p?.fps || '?'} | ${p?.zone || '?'}`);
+      })
+      .catch(() => {});
   }
 }
 
-// ── Chat Log Watcher ───────────────────────────────────────────────────────────
-let chatLogSize = 0;
-let multipartBuffer = {};
-
-function checkChatLog() {
-  try {
-    if (!fs.existsSync(CHAT_LOG_PATH)) return;
-
-    const stat = fs.statSync(CHAT_LOG_PATH);
-    const newSize = stat.size;
-
-    if (newSize <= chatLogSize) { chatLogSize = 0; } // File reset
-    if (newSize === chatLogSize) return;
-
-    const fd = fs.openSync(CHAT_LOG_PATH, 'r');
-    const bufferSize = newSize - chatLogSize;
-    const buffer = Buffer.alloc(bufferSize);
-    fs.readSync(fd, buffer, 0, bufferSize, chatLogSize);
-    fs.closeSync(fd);
-    chatLogSize = newSize;
-
-    const lines = buffer.toString('utf-8').split('\n');
-    for (const line of lines) {
-      processLine(line);
-    }
-  } catch (e) {
-    // File locked by WoW, retry next cycle
-  }
-}
-
-function processLine(line) {
-  const idx = line.indexOf(SYNC_PREFIX);
-  if (idx === -1) return;
-
-  const after = line.substring(idx + SYNC_PREFIX.length);
-
-  if (after.startsWith('PART:')) {
-    const m = after.match(/^PART:(\d+)\/(\d+):(.*)/s);
-    if (!m) return;
-    const part = parseInt(m[1]), total = parseInt(m[2]);
-    let content = m[3];
-    const si = content.indexOf(SYNC_SUFFIX);
-    if (si !== -1) content = content.substring(0, si);
-    if (!multipartBuffer.parts) multipartBuffer = { parts: {}, total };
-    multipartBuffer.parts[part] = content;
-    if (Object.keys(multipartBuffer.parts).length === total) {
-      let full = '';
-      for (let i = 1; i <= total; i++) full += multipartBuffer.parts[i] || '';
-      multipartBuffer = {};
-      sendLiveData(full);
-    }
-  } else {
-    let content = after;
-    const si = content.indexOf(SYNC_SUFFIX);
-    if (si !== -1) content = content.substring(0, si);
-    sendLiveData(content);
-  }
-}
-
-async function sendLiveData(jsonStr) {
-  try {
-    const data = JSON.parse(jsonStr);
-    await sendToServer('/api/sync/live', data);
-    log(`LIVE sync: FPS=${data.fps?.liveFPS || '?'} Zone=${data.player?.zone || '?'}`);
-  } catch (e) {
-    // Malformed JSON or send error
-  }
-}
-
-// ── Heartbeat ──────────────────────────────────────────────────────────────────
-async function sendHeartbeat() {
-  try {
-    await sendToServer('/api/sync/heartbeat', { time: Date.now() });
-  } catch (e) {
-    logError(`Heartbeat failed: ${e.message}`);
-  }
+// ── Heartbeat (envoie aussi le statut WoW) ─────────────────────────────────────
+function sendHeartbeat() {
+  sendToServer('/api/sync/heartbeat', {
+    time: Date.now(),
+    wowRunning,
+  }).catch(() => {});
 }
 
 // ── Logging ────────────────────────────────────────────────────────────────────
@@ -329,44 +302,29 @@ function log(msg) {
 }
 
 function logError(msg) {
-  console.error(`  [${new Date().toLocaleTimeString()}] ERROR: ${msg}`);
+  console.error(`  [${new Date().toLocaleTimeString()}] ${msg}`);
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 console.log('');
 console.log('  ╔══════════════════════════════════════════════════╗');
-console.log('  ║       Lyblics WoW Agent - Local                  ║');
+console.log('  ║       Lyblics WoW Agent                          ║');
 console.log('  ╠══════════════════════════════════════════════════╣');
 console.log(`  ║  Server:  ${SERVER_URL.padEnd(38)}║`);
-console.log('  ║  Mode:    Auto-sync to VPS                       ║');
 console.log('  ╚══════════════════════════════════════════════════╝');
 console.log('');
-console.log(`  SavedVariables: ${SAVED_VARIABLES_PATH}`);
-console.log(`  Chat Log:       ${CHAT_LOG_PATH}`);
-console.log('');
 
-// Initial sync
-(async () => {
-  // Force load all on startup
-  for (const [filename, key] of Object.entries(ADDON_FILES)) {
-    fileModTimes[filename] = 0; // Force reload
-  }
-  await checkAndSyncAddons();
-  log('Initial sync complete');
+// Initial WoW detection
+wowRunning = isWowRunning();
+log(wowRunning ? 'WoW Classic detecte !' : 'WoW Classic non lance - en attente...');
 
-  // Initialize chat log position
-  if (fs.existsSync(CHAT_LOG_PATH)) {
-    chatLogSize = fs.statSync(CHAT_LOG_PATH).size;
-    log(`Chat log found (${(chatLogSize / 1024).toFixed(1)} KB) - watching for new entries`);
-  } else {
-    log('Chat log not found yet - will watch for creation');
-  }
+// Initial file sync
+for (const f of Object.keys(ADDON_FILES)) fileModTimes[f] = 0;
+checkAndSyncAddons();
 
-  // Start polling loops
-  setInterval(checkAndSyncAddons, SV_POLL_INTERVAL);
-  setInterval(checkChatLog, CHATLOG_POLL_INTERVAL);
-  setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+// Start all loops
+setInterval(checkAndSyncAddons, SV_POLL_INTERVAL);
+setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+setInterval(checkWowProcess, WOW_DETECT_INTERVAL);
 
-  log('Agent running. Press Ctrl+C to stop.');
-  log('Play WoW and data will sync automatically!');
-})();
+log('Agent actif - sync automatique');

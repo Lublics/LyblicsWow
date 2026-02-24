@@ -1025,6 +1025,7 @@
     let ws;
     let wsRetry = 0;
     let agentIsConnected = false;
+    let wowIsRunning = false;
 
     function connectWS() {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1055,6 +1056,7 @@
           liveData = msg.live || null;
           lastLiveUpdate = msg.lastLiveUpdate || null;
           agentIsConnected = msg.agentConnected || false;
+          wowIsRunning = msg.wowRunning || false;
           updateLastUpdate(msg.lastUpdate);
           updateAgentStatus();
           updateLiveStatus();
@@ -1066,6 +1068,12 @@
         } else if (msg.type === 'live') {
           liveData = msg.data || null;
           lastLiveUpdate = msg.lastLiveUpdate || null;
+          updateLiveStatus();
+          renderAll();
+        } else if (msg.type === 'status') {
+          agentIsConnected = msg.agentConnected || false;
+          wowIsRunning = msg.wowRunning || false;
+          updateAgentStatus();
           updateLiveStatus();
           renderAll();
         }
@@ -1096,6 +1104,7 @@
         liveData = data.live || null;
         lastLiveUpdate = data.lastLiveUpdate || null;
         agentIsConnected = data.agentConnected || false;
+        wowIsRunning = data.wowRunning || false;
         updateLastUpdate(data.lastUpdate);
         updateAgentStatus();
         updateLiveStatus();
@@ -1114,6 +1123,21 @@
       } else {
         dot.classList.remove('connected');
         text.textContent = 'Agent: Deconnecte';
+      }
+
+      const wowDot = document.getElementById('liveStatus');
+      const wowText = document.getElementById('liveStatusText');
+      if (wowIsRunning) {
+        wowDot.classList.add('connected');
+        wowText.textContent = liveData?.player?.name
+          ? 'WoW: ' + liveData.player.name + ' - En jeu'
+          : 'WoW: En jeu';
+      } else if (agentIsConnected) {
+        wowDot.classList.remove('connected');
+        wowText.textContent = 'WoW: Non lance';
+      } else {
+        wowDot.classList.remove('connected');
+        wowText.textContent = 'WoW: Hors ligne';
       }
     }
 
