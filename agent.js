@@ -20,8 +20,8 @@ const WOW_PATH = 'C:/Program Files (x86)/World of Warcraft/_classic_';
 const SAVED_VARIABLES_PATH = WOW_PATH + '/WTF/Account/431680372#2/SavedVariables';
 
 const SV_POLL_INTERVAL = 2000;       // Check SavedVariables every 2s
-const HEARTBEAT_INTERVAL = 10000;    // Heartbeat every 10s
-const WOW_DETECT_INTERVAL = 5000;    // Check if WoW is running every 5s
+const HEARTBEAT_INTERVAL = 5000;     // Heartbeat every 5s
+const WOW_DETECT_INTERVAL = 3000;    // Check if WoW is running every 3s
 
 // SavedVariables files to watch
 const ADDON_FILES = {
@@ -174,6 +174,8 @@ function checkWowProcess() {
     log('WoW Classic detecte - en jeu !');
     // Force re-check all files since WoW just started
     for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
+    // Notify server immediately
+    sendHeartbeat();
   }
 
   if (!wowRunning && wasRunning) {
@@ -183,6 +185,8 @@ function checkWowProcess() {
     for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
     setTimeout(checkAndSyncAddons, 500);
     setTimeout(checkAndSyncAddons, 2000);
+    // Notify server immediately
+    sendHeartbeat();
   }
 
   wowWasRunning = wasRunning;
@@ -321,6 +325,9 @@ log(wowRunning ? 'WoW Classic detecte !' : 'WoW Classic non lance - en attente..
 // Initial file sync
 for (const f of Object.keys(ADDON_FILES)) fileModTimes[f] = 0;
 checkAndSyncAddons();
+
+// Initial heartbeat (send WoW status immediately)
+sendHeartbeat();
 
 // Start all loops
 setInterval(checkAndSyncAddons, SV_POLL_INTERVAL);
