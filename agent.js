@@ -31,6 +31,9 @@ const SV_POLL_INTERVAL = 2000;       // Check SavedVariables every 2s
 const HEARTBEAT_INTERVAL = 5000;     // Heartbeat every 5s
 const WOW_DETECT_INTERVAL = 3000;    // Check if WoW is running every 3s
 const RESEND_INTERVAL = 30000;       // Re-send all cached data every 30s
+const CHATLOG_POLL_INTERVAL = 1000;  // Check chat log every 1s
+
+const CHATLOG_PATH = WOW_PATH + '/Logs/WoWChatLog.txt';
 
 // SavedVariables files to watch
 const ADDON_FILES = {
@@ -52,6 +55,11 @@ let cachedAddonData = {};
 let cachedLiveData = null;
 const fileModTimes = {};
 let heartbeatCount = 0;
+
+// Chat log bridge state
+let chatLogOffset = 0;
+let chatLogActive = false;
+let chatLogInterval = null;
 
 // ── Lua Parser ─────────────────────────────────────────────────────────────────
 function parseLuaTable(content) {
@@ -185,10 +193,13 @@ function checkWowProcess() {
       log('WoW Classic detecte - en jeu !');
       for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
       sendHeartbeat();
+      // Start chat log bridge with a small delay (let WoW create the file)
+      setTimeout(() => startChatLogTail(), 2000);
     }
 
     if (!wowRunning && wasRunning) {
       log('WoW Classic ferme - sync finale...');
+      stopChatLogTail();
       for (const f of Object.keys(fileModTimes)) fileModTimes[f] = 0;
       setTimeout(() => checkAndSyncAddons(), 500);
       setTimeout(() => checkAndSyncAddons(), 2000);
@@ -310,6 +321,126 @@ function checkAndSyncAddons() {
   }
 }
 
+// ── Chat Log Bridge ─────────────────────────────────────────────────────────────
+const LYB_REGEX = /##LYB##(.+?)##/g;
+
+function parseLybLine(match) {
+  const fields = match.split('|');
+  if (fields.length < 10) return null;
+  return {
+    ts: Math.floor(Date.now() / 1000),
+    player: {
+      name: fields[0],
+      realm: fields[1],
+      class: fields[2],
+      level: parseInt(fields[3], 10) || 0,
+      zone: fields[4],
+      subzone: fields[5],
+      gold: parseInt(fields[6], 10) || 0,
+      fps: parseInt(fields[7], 10) || 0,
+      latencyHome: parseInt(fields[8], 10) || 0,
+      latencyWorld: parseInt(fields[9], 10) || 0,
+    },
+  };
+}
+
+let chatLogRetryInterval = null;
+
+function startChatLogTail() {
+  if (chatLogActive) return;
+
+  try {
+    if (!fs.existsSync(CHATLOG_PATH)) {
+      // File doesn't exist yet - retry every 3s until it appears
+      if (!chatLogRetryInterval) {
+        log('Chat log introuvable - retry toutes les 3s...');
+        chatLogRetryInterval = setInterval(() => {
+          if (fs.existsSync(CHATLOG_PATH)) {
+            clearInterval(chatLogRetryInterval);
+            chatLogRetryInterval = null;
+            startChatLogTail();
+          }
+        }, 3000);
+      }
+      return;
+    }
+    // Start reading from the end of the file (only new lines)
+    const stat = fs.statSync(CHATLOG_PATH);
+    chatLogOffset = stat.size;
+    chatLogActive = true;
+
+    chatLogInterval = setInterval(checkChatLog, CHATLOG_POLL_INTERVAL);
+    log('Chat log bridge actif: ' + CHATLOG_PATH);
+  } catch (e) {
+    logError('startChatLogTail error: ' + e.message);
+  }
+}
+
+function stopChatLogTail() {
+  if (chatLogInterval) {
+    clearInterval(chatLogInterval);
+    chatLogInterval = null;
+  }
+  if (chatLogRetryInterval) {
+    clearInterval(chatLogRetryInterval);
+    chatLogRetryInterval = null;
+  }
+  chatLogActive = false;
+  chatLogOffset = 0;
+}
+
+function checkChatLog() {
+  try {
+    if (!fs.existsSync(CHATLOG_PATH)) return;
+
+    const stat = fs.statSync(CHATLOG_PATH);
+
+    // File was truncated or replaced (WoW restart) - reset offset
+    if (stat.size < chatLogOffset) {
+      chatLogOffset = 0;
+      log('Chat log reset detected - reading from start');
+    }
+
+    // No new data
+    if (stat.size === chatLogOffset) return;
+
+    // Read only the new bytes
+    const fd = fs.openSync(CHATLOG_PATH, 'r');
+    const bytesToRead = stat.size - chatLogOffset;
+    const buffer = Buffer.alloc(bytesToRead);
+    fs.readSync(fd, buffer, 0, bytesToRead, chatLogOffset);
+    fs.closeSync(fd);
+    chatLogOffset = stat.size;
+
+    const newContent = buffer.toString('utf-8');
+
+    // Find all ##LYB## matches
+    let match;
+    let lastPayload = null;
+    LYB_REGEX.lastIndex = 0;
+    while ((match = LYB_REGEX.exec(newContent)) !== null) {
+      const payload = parseLybLine(match[1]);
+      if (payload) lastPayload = payload;
+    }
+
+    // Only send the most recent one (avoids flooding if multiple lines arrived)
+    if (lastPayload) {
+      cachedLiveData = lastPayload;
+      sendToServer('/api/sync/live', lastPayload)
+        .then(() => {
+          const p = lastPayload.player;
+          log(`Live (chatlog): ${p.name} | FPS ${p.fps} | ${p.zone}${p.subzone ? ' - ' + p.subzone : ''} | ${p.gold}g`);
+        })
+        .catch((e) => logError(`Sync live (chatlog) failed: ${e.message}`));
+    }
+  } catch (e) {
+    // File locked by WoW - skip silently
+    if (e.code !== 'EBUSY') {
+      logError('checkChatLog error: ' + e.message);
+    }
+  }
+}
+
 // ── Periodic re-send of cached data ─────────────────────────────────────────────
 function resendCachedData() {
   try {
@@ -366,6 +497,11 @@ log(wowRunning ? 'WoW Classic detecte !' : 'WoW Classic non lance - en attente..
 for (const f of Object.keys(ADDON_FILES)) fileModTimes[f] = 0;
 checkAndSyncAddons();
 
+// Start chat log bridge if WoW is already running
+if (wowRunning) {
+  startChatLogTail();
+}
+
 // Initial heartbeat
 sendHeartbeat();
 
@@ -379,5 +515,5 @@ log('Agent actif - sync automatique (pid: ' + process.pid + ')');
 
 // Keep alive indicator every 5 minutes
 setInterval(() => {
-  log(`Agent actif | WoW: ${wowRunning ? 'OUI' : 'non'} | Serveur: ${serverReachable ? 'OK' : 'KO'} | Addons: ${Object.keys(cachedAddonData).length}`);
+  log(`Agent actif | WoW: ${wowRunning ? 'OUI' : 'non'} | Serveur: ${serverReachable ? 'OK' : 'KO'} | ChatLog: ${chatLogActive ? 'OUI' : 'non'} | Addons: ${Object.keys(cachedAddonData).length}`);
 }, 300000);
