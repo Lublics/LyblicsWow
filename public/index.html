@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lyblics WoW Tracker</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #1c2128;
+      --bg-hover: #252c35;
+      --border: #30363d;
+      --border-light: #3d444d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #bc8cff;
+      --accent-cyan: #39d2c0;
+      --accent-pink: #f778ba;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
+      --transition: 150ms ease;
+      --sidebar-width: 240px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform var(--transition);
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+    }
+
+    .nav-section {
+      margin-bottom: 16px;
+    }
+
+    .nav-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      margin-bottom: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 14px;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--accent-blue);
+    }
+
+    .nav-item .nav-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-red);
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected { background: var(--accent-green); }
+
+    .last-update {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ── Main Content ─────────────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      padding: 24px;
+      max-width: 1200px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* ── Sections (pages) ─────────────────────────────────────────────────── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── Cards ─────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .card-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    .badge-green { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); }
+    .badge-orange { background: rgba(210, 153, 34, 0.15); color: var(--accent-orange); }
+    .badge-red { background: rgba(248, 81, 73, 0.15); color: var(--accent-red); }
+    .badge-blue { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); }
+    .badge-purple { background: rgba(188, 140, 255, 0.15); color: var(--accent-purple); }
+
+    /* ── Stat Grid ─────────────────────────────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      transition: border-color var(--transition);
+    }
+
+    .stat-card:hover { border-color: var(--border-light); }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .stat-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .text-green { color: var(--accent-green); }
+    .text-orange { color: var(--accent-orange); }
+    .text-red { color: var(--accent-red); }
+    .text-blue { color: var(--accent-blue); }
+    .text-purple { color: var(--accent-purple); }
+    .text-cyan { color: var(--accent-cyan); }
+    .text-pink { color: var(--accent-pink); }
+    .text-muted { color: var(--text-muted); }
+
+    /* ── Tables ────────────────────────────────────────────────────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+    .data-table td {
+      padding: 10px 12px;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--bg-hover); }
+
+    /* ── Progress Bars ─────────────────────────────────────────────────────── */
+    .progress-bar {
+      height: 6px;
+      background: var(--bg-primary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 500ms ease;
+    }
+
+    .progress-fill.green { background: var(--accent-green); }
+    .progress-fill.blue { background: var(--accent-blue); }
+    .progress-fill.purple { background: var(--accent-purple); }
+    .progress-fill.orange { background: var(--accent-orange); }
+
+    /* ── Tags / Chips ──────────────────────────────────────────────────────── */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    /* ── Ore Colors ────────────────────────────────────────────────────────── */
+    .ore-ghost-iron { color: #7ec8e3; }
+    .ore-kyparite { color: #a1d99b; }
+    .ore-trillium { color: #e6c74c; }
+    .ore-iron { color: #bbb; }
+    .ore-mithril { color: #6e9ecf; }
+    .ore-thorium { color: #d4a5e0; }
+
+    /* ── Overview Grid ─────────────────────────────────────────────────────── */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .overview-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .overview-card:hover {
+      border-color: var(--accent-blue);
+      transform: translateY(-1px);
+    }
+
+    .overview-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .overview-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .overview-card-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .overview-card-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .overview-stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .overview-stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .overview-stat-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* ── Fish Log ──────────────────────────────────────────────────────────── */
+    .fish-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .fish-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+
+    .fish-name { color: var(--text-primary); }
+    .fish-count { color: var(--accent-cyan); font-weight: 600; }
+
+    /* ── Zone Stats ────────────────────────────────────────────────────────── */
+    .zone-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .zone-bar-container:last-child { border-bottom: none; }
+
+    .zone-name {
+      width: 180px;
+      font-size: 13px;
+      color: var(--text-primary);
+      flex-shrink: 0;
+    }
+
+    .zone-bar-wrap {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-primary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .zone-bar-fill {
+      height: 100%;
+      background: var(--accent-blue);
+      border-radius: 4px;
+      transition: width 500ms ease;
+    }
+
+    .zone-count {
+      width: 60px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    /* ── Settings Toggle ───────────────────────────────────────────────────── */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setting-row:last-child { border-bottom: none; }
+
+    .setting-label {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .setting-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .toggle-on { color: var(--accent-green); }
+    .toggle-off { color: var(--text-muted); }
+
+    /* ── Character Card ────────────────────────────────────────────────────── */
+    .character-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .character-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      object-fit: cover;
+    }
+
+    .character-info h2 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .character-meta {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    /* ── Search Bar ────────────────────────────────────────────────────────── */
+    .search-form {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .form-group input, .form-group select {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .btn {
+      padding: 8px 20px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all var(--transition);
+    }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      color: #fff;
+    }
+
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* ── Raid Boss Grid ────────────────────────────────────────────────────── */
+    .boss-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+    }
+
+    .boss-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+
+    .boss-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .boss-dot.killed { background: var(--accent-green); }
+    .boss-dot.alive { background: var(--text-muted); }
+
+    .boss-name {
+      flex: 1;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .boss-kills {
+      color: var(--text-muted);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    /* ── Difficulty Tabs ───────────────────────────────────────────────────── */
+    .diff-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .diff-tab {
+      padding: 4px 12px;
+      font-size: 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      transition: all var(--transition);
+    }
+
+    .diff-tab:hover { border-color: var(--border-light); }
+    .diff-tab.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+    /* ── No Data State ─────────────────────────────────────────────────────── */
+    .no-data {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
+    }
+
+    .no-data-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    .no-data-text {
+      font-size: 14px;
+    }
+
+    /* ── Responsive ────────────────────────────────────────────────────────── */
+    .mobile-toggle {
+      display: none;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 200;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .mobile-toggle { display: block; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .overview-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Loading ────────────────────────────────────────────────────────────── */
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card { animation: fadeIn 200ms ease; }
+
+    /* ── CVars Table ────────────────────────────────────────────────────────── */
+    .cvar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+
+    .cvar-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+
+    .cvar-name { color: var(--text-secondary); font-family: monospace; }
+    .cvar-value { color: var(--accent-cyan); font-weight: 600; font-family: monospace; }
+
+    /* ── Nameplate Color ───────────────────────────────────────────────────── */
+    .color-preview {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid var(--border-light);
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+  <button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+  <div class="app">
+    <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">L</div>
+          <div>
+            <div class="logo-text">Lyblics Tracker</div>
+            <div class="logo-sub">WoW Dashboard</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-label">General</div>
+          <div class="nav-item active" data-page="overview">
+            <span class="nav-icon">&#9632;</span> Vue d'ensemble
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">Addons</div>
+          <div class="nav-item" data-page="fps">
+            <span class="nav-icon">&#9889;</span> FPS Monitor
+          </div>
+          <div class="nav-item" data-page="fishing">
+            <span class="nav-icon">&#127907;</span> Fishing Tracker
+          </div>
+          <div class="nav-item" data-page="mining">
+            <span class="nav-icon">&#9935;</span> Mining Tracker
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">Utilitaires</div>
+          <div class="nav-item" data-page="utilities">
+            <span class="nav-icon">&#9881;</span> Utilitaires
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">API Blizzard</div>
+          <div class="nav-item" data-page="character">
+            <span class="nav-icon">&#128100;</span> Personnage
+          </div>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="connection-status">
+          <span class="status-dot" id="wsStatus"></span>
+          <span id="wsStatusText">Connexion...</span>
+        </div>
+        <div class="last-update" id="lastUpdateText">Aucune mise a jour</div>
+      </div>
+    </aside>
+
+    <!-- ── Main Content ─────────────────────────────────────────────── -->
+    <main class="main">
+
+      <!-- ── Overview ──────────────────────────────────────────────── -->
+      <div class="section active" id="page-overview">
+        <div class="page-header">
+          <h1 class="page-title">Vue d'ensemble</h1>
+          <p class="page-subtitle">Toutes vos donnees d'addons en un coup d'oeil</p>
+        </div>
+        <div class="overview-grid" id="overviewGrid">
+          <div class="no-data">
+            <div class="no-data-icon">&#128229;</div>
+            <div class="no-data-text">Chargement des donnees...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FPS Monitor ──────────────────────────────────────────── -->
+      <div class="section" id="page-fps">
+        <div class="page-header">
+          <h1 class="page-title">FPS Monitor</h1>
+          <p class="page-subtitle">LybicsFPS - Performance & reglages graphiques</p>
+        </div>
+        <div id="fpsContent">
+          <div class="no-data">
+            <div class="no-data-icon">&#9889;</div>
+            <div class="no-data-text">Aucune donnee FPS disponible</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Fishing Tracker ──────────────────────────────────────── -->
+      <div class="section" id="page-fishing">
+        <div class="page-header">
+          <h1 class="page-title">Fishing Tracker</h1>
+          <p class="page-subtitle">LyblicsFishing - Suivi de peche</p>
+        </div>
+        <div id="fishingContent">
+          <div class="no-data">
+            <div class="no-data-icon">&#127907;</div>
+            <div class="no-data-text">Aucune donnee de peche disponible</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Mining Tracker ───────────────────────────────────────── -->
+      <div class="section" id="page-mining">
+        <div class="page-header">
+          <h1 class="page-title">Mining Tracker</h1>
+          <p class="page-subtitle">LyblicsMining - Suivi de minage</p>
+        </div>
+        <div id="miningContent">
+          <div class="no-data">
+            <div class="no-data-icon">&#9935;</div>
+            <div class="no-data-text">Aucune donnee de minage disponible</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Utilities ────────────────────────────────────────────── -->
+      <div class="section" id="page-utilities">
+        <div class="page-header">
+          <h1 class="page-title">Utilitaires</h1>
+          <p class="page-subtitle">Auto Repair, Auto Sell Junk, Nameplates</p>
+        </div>
+        <div id="utilitiesContent">
+          <div class="no-data">
+            <div class="no-data-icon">&#9881;</div>
+            <div class="no-data-text">Aucune donnee disponible</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Character (Blizzard API) ─────────────────────────────── -->
+      <div class="section" id="page-character">
+        <div class="page-header">
+          <h1 class="page-title">Recherche de personnage</h1>
+          <p class="page-subtitle">Progression, raids, PvP via l'API Blizzard</p>
+        </div>
+
+        <div class="card">
+          <div class="search-form">
+            <div class="form-group">
+              <label>Personnage</label>
+              <input type="text" id="charName" placeholder="Nom du personnage" />
+            </div>
+            <div class="form-group">
+              <label>Royaume</label>
+              <select id="charRealm">
+                <option value="archimonde">Archimonde</option>
+                <option value="hyjal">Hyjal</option>
+                <option value="dalaran">Dalaran</option>
+                <option value="ysondre">Ysondre</option>
+                <option value="khaz-modan">Khaz Modan</option>
+                <option value="sargeras">Sargeras</option>
+                <option value="elune">Elune</option>
+                <option value="kael-thas">Kael'thas</option>
+                <option value="medivh">Medivh</option>
+                <option value="cho-gall">Cho'gall</option>
+                <option value="ner-zhul">Ner'zhul</option>
+                <option value="connected-chants-eternels">Chants Eternels</option>
+                <option value="connected-la-croisade-ecarlate">La Croisade Ecarlate</option>
+                <option value="sulfuron">Sulfuron</option>
+                <option value="illidan">Illidan</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Version</label>
+              <select id="charVersion">
+                <option value="classic">Classic (MoP)</option>
+                <option value="retail">Retail</option>
+                <option value="classic_era">Classic Era</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="searchCharacter()">Rechercher</button>
+          </div>
+        </div>
+
+        <div id="characterResult"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ── Navigation ──────────────────────────────────────────────────────────
+    const navItems = document.querySelectorAll('.nav-item[data-page]');
+    const sections = document.querySelectorAll('.section');
+
+    function navigate(page) {
+      navItems.forEach(n => n.classList.toggle('active', n.dataset.page === page));
+      sections.forEach(s => s.classList.toggle('active', s.id === 'page-' + page));
+      // Close mobile sidebar
+      document.querySelector('.sidebar').classList.remove('open');
+    }
+
+    navItems.forEach(item => {
+      item.addEventListener('click', () => navigate(item.dataset.page));
+    });
+
+    // ── Store ───────────────────────────────────────────────────────────────
+    let addonData = {};
+    let wsConnected = false;
+
+    // ── WebSocket ───────────────────────────────────────────────────────────
+    let ws;
+    let wsRetry = 0;
+
+    function connectWS() {
+      ws = new WebSocket('ws://' + location.host);
+
+      ws.onopen = () => {
+        wsConnected = true;
+        wsRetry = 0;
+        document.getElementById('wsStatus').classList.add('connected');
+        document.getElementById('wsStatusText').textContent = 'Connecte';
+      };
+
+      ws.onclose = () => {
+        wsConnected = false;
+        document.getElementById('wsStatus').classList.remove('connected');
+        document.getElementById('wsStatusText').textContent = 'Deconnecte';
+        // Reconnect
+        const delay = Math.min(1000 * Math.pow(2, wsRetry), 30000);
+        wsRetry++;
+        setTimeout(connectWS, delay);
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'full') {
+          addonData = msg.addons || {};
+          updateLastUpdate(msg.lastUpdate);
+          renderAll();
+        } else if (msg.type === 'update') {
+          addonData[msg.addon] = msg.data;
+          updateLastUpdate(msg.lastUpdate);
+          renderAll();
+        }
+      };
+    }
+
+    // Also load via HTTP in case WS is slow
+    async function loadInitial() {
+      try {
+        const res = await fetch('/api/addons');
+        const data = await res.json();
+        addonData = data.addons || {};
+        updateLastUpdate(data.lastUpdate);
+        renderAll();
+      } catch (e) {
+        console.error('Initial load failed:', e);
+      }
+    }
+
+    function updateLastUpdate(ts) {
+      if (!ts) return;
+      const d = new Date(ts);
+      document.getElementById('lastUpdateText').textContent =
+        'MAJ: ' + d.toLocaleTimeString('fr-FR');
+    }
+
+    // ── Render All ──────────────────────────────────────────────────────────
+    function renderAll() {
+      renderOverview();
+      renderFPS();
+      renderFishing();
+      renderMining();
+      renderUtilities();
+    }
+
+    // ── Overview ────────────────────────────────────────────────────────────
+    function renderOverview() {
+      const grid = document.getElementById('overviewGrid');
+      let html = '';
+
+      // FPS card
+      const fps = addonData.fps;
+      if (fps) {
+        const profile = fps.currentProfile || 'N/A';
+        const profileColors = { performance: 'text-green', balanced: 'text-orange', ultra: 'text-purple', original: 'text-blue' };
+        html += `
+          <div class="overview-card" onclick="navigate('fps')">
+            <div class="overview-card-header">
+              <div class="overview-icon" style="background:rgba(88,166,255,0.1)">&#9889;</div>
+              <div>
+                <div class="overview-card-title">FPS Monitor</div>
+                <div class="overview-card-subtitle">Performance & graphiques</div>
+              </div>
+            </div>
+            <div class="overview-stats">
+              <div>
+                <div class="overview-stat-label">Profil actif</div>
+                <div class="overview-stat-value ${profileColors[profile] || ''}">${capitalize(profile)}</div>
+              </div>
+              <div>
+                <div class="overview-stat-label">FPS cible</div>
+                <div class="overview-stat-value text-cyan">${fps.targetFPS || 60}</div>
+              </div>
+              <div>
+                <div class="overview-stat-label">Auto Mode</div>
+                <div class="overview-stat-value ${fps.autoMode ? 'text-green' : 'text-muted'}">${fps.autoMode ? 'ON' : 'OFF'}</div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // Fishing card
+      const fish = addonData.fishing;
+      if (fish) {
+        const rate = fish.totalCasts > 0 ? Math.round((fish.totalCatches / fish.totalCasts) * 100) : 0;
+        html += `
+          <div class="overview-card" onclick="navigate('fishing')">
+            <div class="overview-card-header">
+              <div class="overview-icon" style="background:rgba(57,210,192,0.1)">&#127907;</div>
+              <div>
+                <div class="overview-card-title">Fishing Tracker</div>
+                <div class="overview-card-subtitle">Suivi de peche</div>
+              </div>
+            </div>
+            <div class="overview-stats">
+              <div>
+                <div class="overview-stat-label">Prises</div>
+                <div class="overview-stat-value text-cyan">${fish.totalCatches || 0}</div>
+              </div>
+              <div>
+                <div class="overview-stat-label">Lancers</div>
+                <div class="overview-stat-value text-blue">${fish.totalCasts || 0}</div>
+              </div>
+              <div>
+                <div class="overview-stat-label">Taux</div>
+                <div class="overview-stat-value text-green">${rate}%</div>
+              </div>
+              <div>
+                <div class="overview-stat-label">Sessions</div>
+                <div class="overview-stat-value text-purple">${fish.sessions || 0}</div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // Mining card
+      const mine = addonData.mining;
+      if (mine) {
+        const totalMined = mine.stats?.totalMined || 0;
+        const zoneCount = Object.keys(mine.zones || {}).length;
+        const oreCount = Object.keys(mine.stats?.oreCounts || {}).length;
+        html += `
+          <div class="overview-card" onclick="navigate('mining')">
+            <div class="overview-card-header">
+              <div class="overview-icon" style="background:rgba(210,153,34,0.1)">&#9935;</div>
+              <div>
+                <div class="overview-card-title">Mining Tracker</div>
+                <div class="overview-card-subtitle">Suivi de minage</div>
+              </div>
+            </div>
+            <div class="overview-stats">
+              <div>
+                <div class="overview-stat-label">Total mine</div>
+                <div class="overview-stat-value text-orange">${totalMined}</div>
+              </div>
+              <div>
+                <div class="overview-stat-label">Zones</div>
+                <div class="overview-stat-value text-blue">${zoneCount}</div>
+              </div>
+              <div>
+                <div class="overview-stat-label">Types minerai</div>
+                <div class="overview-stat-value text-purple">${oreCount}</div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // Utilities summary
+      const repair = addonData.autorepair;
+      const sell = addonData.autosell;
+      const np = addonData.nameplates;
+      if (repair || sell || np) {
+        const activeCount = [repair?.enabled, sell?.enabled, np?.enabled].filter(Boolean).length;
+        html += `
+          <div class="overview-card" onclick="navigate('utilities')">
+            <div class="overview-card-header">
+              <div class="overview-icon" style="background:rgba(188,140,255,0.1)">&#9881;</div>
+              <div>
+                <div class="overview-card-title">Utilitaires</div>
+                <div class="overview-card-subtitle">Auto Repair, Sell Junk, Nameplates</div>
+              </div>
+            </div>
+            <div class="overview-stats">
+              <div>
+                <div class="overview-stat-label">Actifs</div>
+                <div class="overview-stat-value text-green">${activeCount}/3</div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      if (!html) {
+        html = `<div class="no-data">
+          <div class="no-data-icon">&#128229;</div>
+          <div class="no-data-text">En attente des donnees... Lance WoW ou fais /reload</div>
+        </div>`;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    // ── FPS ─────────────────────────────────────────────────────────────────
+    function renderFPS() {
+      const fps = addonData.fps;
+      const el = document.getElementById('fpsContent');
+      if (!fps) {
+        el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#9889;</div><div class="no-data-text">Aucune donnee FPS. Connecte-toi a WoW.</div></div>`;
+        return;
+      }
+
+      const profile = fps.currentProfile || 'original';
+      const profileColors = { performance: 'badge-green', balanced: 'badge-orange', ultra: 'badge-purple', original: 'badge-blue' };
+
+      let cvarsHtml = '';
+      if (fps.originalCVars) {
+        for (const [key, val] of Object.entries(fps.originalCVars)) {
+          cvarsHtml += `<div class="cvar-item"><span class="cvar-name">${key}</span><span class="cvar-value">${val}</span></div>`;
+        }
+      }
+
+      el.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Profil actif</div>
+            <div class="stat-value ${profile === 'performance' ? 'text-green' : profile === 'ultra' ? 'text-purple' : profile === 'balanced' ? 'text-orange' : 'text-blue'}">${capitalize(profile)}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">FPS cible</div>
+            <div class="stat-value text-cyan">${fps.targetFPS || 60}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Mode Auto</div>
+            <div class="stat-value ${fps.autoMode ? 'text-green' : 'text-muted'}">${fps.autoMode ? 'Actif' : 'Inactif'}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">GC Auto</div>
+            <div class="stat-value ${fps.gcEnabled ? 'text-green' : 'text-muted'}">${fps.gcEnabled ? 'Actif' : 'Inactif'}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Position</div>
+            <div class="stat-value text-blue" style="font-size:18px">${fps.point || 'TOP'}</div>
+            <div class="stat-sub">x: ${fps.x || 0}, y: ${fps.y || 0}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Echelle UI</div>
+            <div class="stat-value text-purple">${fps.scale || 1.0}x</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Reglages graphiques originaux</span>
+            <span class="card-badge ${profileColors[profile] || 'badge-blue'}">${capitalize(profile)}</span>
+          </div>
+          <div class="cvar-grid">${cvarsHtml || '<span class="text-muted">Aucun CVar sauvegarde</span>'}</div>
+        </div>`;
+    }
+
+    // ── Fishing ─────────────────────────────────────────────────────────────
+    function renderFishing() {
+      const fish = addonData.fishing;
+      const el = document.getElementById('fishingContent');
+      if (!fish) {
+        el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#127907;</div><div class="no-data-text">Aucune donnee de peche. Lance une session de peche !</div></div>`;
+        return;
+      }
+
+      const rate = fish.totalCasts > 0 ? Math.round((fish.totalCatches / fish.totalCasts) * 100) : 0;
+      const totalTime = fish.totalTime || 0;
+      const timeStr = totalTime >= 3600
+        ? `${Math.floor(totalTime / 3600)}h ${Math.floor((totalTime % 3600) / 60)}m`
+        : `${Math.floor(totalTime / 60)}m ${totalTime % 60}s`;
+
+      // Fish log
+      let fishLogHtml = '';
+      if (fish.fishLog && Object.keys(fish.fishLog).length > 0) {
+        const sorted = Object.entries(fish.fishLog).sort((a, b) => b[1] - a[1]);
+        for (const [name, count] of sorted) {
+          fishLogHtml += `<div class="fish-item"><span class="fish-name">${name}</span><span class="fish-count">x${count}</span></div>`;
+        }
+      }
+
+      // Zone stats
+      let zoneHtml = '';
+      if (fish.zoneStats && Object.keys(fish.zoneStats).length > 0) {
+        const zones = Object.entries(fish.zoneStats).sort((a, b) => b[1].catches - a[1].catches);
+        const maxCatches = zones[0] ? zones[0][1].catches : 1;
+        for (const [zone, stats] of zones) {
+          const pct = Math.round((stats.catches / maxCatches) * 100);
+          const zoneRate = stats.casts > 0 ? Math.round((stats.catches / stats.casts) * 100) : 0;
+          zoneHtml += `
+            <div class="zone-bar-container">
+              <span class="zone-name">${zone}</span>
+              <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:${pct}%;background:var(--accent-cyan)"></div></div>
+              <span class="zone-count">${stats.catches} <span class="text-muted">(${zoneRate}%)</span></span>
+            </div>`;
+        }
+      }
+
+      el.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total prises</div>
+            <div class="stat-value text-cyan">${fish.totalCatches || 0}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total lancers</div>
+            <div class="stat-value text-blue">${fish.totalCasts || 0}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Taux de reussite</div>
+            <div class="stat-value ${rate >= 80 ? 'text-green' : rate >= 50 ? 'text-orange' : 'text-red'}">${rate}%</div>
+            <div class="progress-bar" style="margin-top:6px"><div class="progress-fill ${rate >= 80 ? 'green' : rate >= 50 ? 'orange' : ''}" style="width:${rate}%;${rate < 50 ? 'background:var(--accent-red)' : ''}"></div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Temps de peche</div>
+            <div class="stat-value text-purple">${timeStr}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Sessions</div>
+            <div class="stat-value text-blue">${fish.sessions || 0}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Meilleur session</div>
+            <div class="stat-value text-green">${fish.bestCatches || 0}</div>
+            <div class="stat-sub">prises en une session</div>
+          </div>
+        </div>
+
+        ${fishLogHtml ? `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Journal des prises</span>
+            <span class="card-badge badge-blue">${Object.keys(fish.fishLog).length} especes</span>
+          </div>
+          <div class="fish-grid">${fishLogHtml}</div>
+        </div>` : ''}
+
+        ${zoneHtml ? `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Statistiques par zone</span>
+          </div>
+          ${zoneHtml}
+        </div>` : ''}
+      `;
+    }
+
+    // ── Mining ──────────────────────────────────────────────────────────────
+    function renderMining() {
+      const mine = addonData.mining;
+      const el = document.getElementById('miningContent');
+      if (!mine) {
+        el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#9935;</div><div class="no-data-text">Aucune donnee de minage. Minons !</div></div>`;
+        return;
+      }
+
+      const totalMined = mine.stats?.totalMined || 0;
+      const oreCounts = mine.stats?.oreCounts || {};
+      const zones = mine.zones || {};
+      const zoneCount = Object.keys(zones).length;
+
+      // Ore breakdown
+      let oreHtml = '';
+      const oreSorted = Object.entries(oreCounts).sort((a, b) => b[1] - a[1]);
+      const maxOre = oreSorted[0] ? oreSorted[0][1] : 1;
+      for (const [name, count] of oreSorted) {
+        const pct = Math.round((count / maxOre) * 100);
+        oreHtml += `
+          <div class="zone-bar-container">
+            <span class="zone-name">${name}</span>
+            <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:${pct}%;background:var(--accent-orange)"></div></div>
+            <span class="zone-count">${count}</span>
+          </div>`;
+      }
+
+      // Zone nodes summary
+      let zoneNodesHtml = '';
+      const zoneSorted = Object.entries(zones).sort((a, b) => b[1].totalNodes - a[1].totalNodes);
+      const maxNodes = zoneSorted[0] ? zoneSorted[0][1].totalNodes : 1;
+      for (const [zone, data] of zoneSorted.slice(0, 15)) {
+        const pct = Math.round((data.totalNodes / maxNodes) * 100);
+        const topOre = Object.entries(data.oreTypes || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => e[0]).join(', ');
+        zoneNodesHtml += `
+          <div class="zone-bar-container">
+            <span class="zone-name" title="${topOre}">${zone}</span>
+            <div class="zone-bar-wrap"><div class="zone-bar-fill" style="width:${pct}%;background:var(--accent-purple)"></div></div>
+            <span class="zone-count">${data.totalNodes}</span>
+          </div>`;
+      }
+
+      // Total nodes across all zones
+      let totalNodes = 0;
+      for (const z of Object.values(zones)) totalNodes += z.totalNodes || 0;
+
+      el.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total mine</div>
+            <div class="stat-value text-orange">${totalMined}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Nodes en base</div>
+            <div class="stat-value text-purple">${totalNodes.toLocaleString()}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Zones couvertes</div>
+            <div class="stat-value text-blue">${zoneCount}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Types de minerai</div>
+            <div class="stat-value text-cyan">${oreSorted.length}</div>
+          </div>
+        </div>
+
+        ${oreHtml ? `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Minerais collectes</span>
+            <span class="card-badge badge-orange">${oreSorted.length} types</span>
+          </div>
+          ${oreHtml}
+        </div>` : ''}
+
+        ${zoneNodesHtml ? `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Nodes par zone</span>
+            <span class="card-badge badge-purple">Top 15 sur ${zoneCount}</span>
+          </div>
+          ${zoneNodesHtml}
+        </div>` : ''}
+      `;
+    }
+
+    // ── Utilities ───────────────────────────────────────────────────────────
+    function renderUtilities() {
+      const repair = addonData.autorepair;
+      const sell = addonData.autosell;
+      const np = addonData.nameplates;
+      const el = document.getElementById('utilitiesContent');
+
+      if (!repair && !sell && !np) {
+        el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#9881;</div><div class="no-data-text">Aucun utilitaire detecte</div></div>`;
+        return;
+      }
+
+      let html = '';
+
+      // Auto Repair
+      if (repair) {
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Auto Repair</span>
+              <span class="card-badge ${repair.enabled ? 'badge-green' : 'badge-red'}">${repair.enabled ? 'Actif' : 'Inactif'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Reparation automatique</div><div class="setting-desc">Repare automatiquement chez les marchands</div></div>
+              <span class="toggle ${repair.enabled ? 'toggle-on' : 'toggle-off'}">${repair.enabled ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Utiliser la banque de guilde</div><div class="setting-desc">Priorise la banque de guilde pour les reparations</div></div>
+              <span class="toggle ${repair.useGuildBank ? 'toggle-on' : 'toggle-off'}">${repair.useGuildBank ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Messages detailles</div><div class="setting-desc">Affiche le montant repare dans le chat</div></div>
+              <span class="toggle ${repair.verbose ? 'toggle-on' : 'toggle-off'}">${repair.verbose ? 'ON' : 'OFF'}</span>
+            </div>
+          </div>`;
+      }
+
+      // Auto Sell Junk
+      if (sell) {
+        const exCount = sell.exclusions ? Object.keys(sell.exclusions).length : 0;
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Auto Sell Junk</span>
+              <span class="card-badge ${sell.enabled ? 'badge-green' : 'badge-red'}">${sell.enabled ? 'Actif' : 'Inactif'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Vente auto des gris</div><div class="setting-desc">Vend automatiquement les objets gris</div></div>
+              <span class="toggle ${sell.enabled ? 'toggle-on' : 'toggle-off'}">${sell.enabled ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Messages detailles</div><div class="setting-desc">Affiche le gain dans le chat</div></div>
+              <span class="toggle ${sell.verbose ? 'toggle-on' : 'toggle-off'}">${sell.verbose ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Exclusions</div><div class="setting-desc">Objets exclus de la vente auto</div></div>
+              <span class="tag">${exCount} objet(s)</span>
+            </div>
+          </div>`;
+      }
+
+      // Nameplates
+      if (np) {
+        const friendlyColor = np.friendlyPlayerColor ? rgbToHex(np.friendlyPlayerColor.r, np.friendlyPlayerColor.g, np.friendlyPlayerColor.b) : '#00ff00';
+        const hostileColor = np.hostilePlayerColor ? rgbToHex(np.hostilePlayerColor.r, np.hostilePlayerColor.g, np.hostilePlayerColor.b) : '#ff0000';
+        const neutralColor = np.neutralColor ? rgbToHex(np.neutralColor.r, np.neutralColor.g, np.neutralColor.b) : '#ffff00';
+
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Custom Nameplates</span>
+              <span class="card-badge ${np.enabled ? 'badge-green' : 'badge-red'}">${np.enabled ? 'Actif' : 'Inactif'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Couleur par classe</div></div>
+              <span class="toggle ${np.colorByClass ? 'toggle-on' : 'toggle-off'}">${np.colorByClass ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Couleur par niveau</div></div>
+              <span class="toggle ${np.colorByLevel ? 'toggle-on' : 'toggle-off'}">${np.colorByLevel ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Couleur hostiles par vie</div></div>
+              <span class="toggle ${np.colorHostileByHealth ? 'toggle-on' : 'toggle-off'}">${np.colorHostileByHealth ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Afficher % vie</div></div>
+              <span class="toggle ${np.showHealthPct ? 'toggle-on' : 'toggle-off'}">${np.showHealthPct ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-label">Afficher niveau</div></div>
+              <span class="toggle ${np.showLevel ? 'toggle-on' : 'toggle-off'}">${np.showLevel ? 'ON' : 'OFF'}</span>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Couleurs des joueurs</div>
+                <div class="setting-desc">
+                  <span class="color-preview" style="background:${friendlyColor}"></span>Amical
+                  &nbsp;&nbsp;
+                  <span class="color-preview" style="background:${hostileColor}"></span>Hostile
+                  &nbsp;&nbsp;
+                  <span class="color-preview" style="background:${neutralColor}"></span>Neutre
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      el.innerHTML = html;
+    }
+
+    // ── Character Search (Blizzard API) ─────────────────────────────────────
+    async function searchCharacter() {
+      const name = document.getElementById('charName').value.trim();
+      const realm = document.getElementById('charRealm').value;
+      const version = document.getElementById('charVersion').value;
+      const resultEl = document.getElementById('characterResult');
+
+      if (!name) {
+        resultEl.innerHTML = '<div class="card" style="color:var(--accent-red)">Entre un nom de personnage</div>';
+        return;
+      }
+
+      resultEl.innerHTML = '<div class="card" style="text-align:center"><span class="loading-spinner"></span> Recherche en cours...</div>';
+
+      try {
+        const res = await fetch(`/api/character?name=${encodeURIComponent(name)}&realm=${encodeURIComponent(realm)}&version=${encodeURIComponent(version)}`);
+        const data = await res.json();
+
+        if (data.error) {
+          resultEl.innerHTML = `<div class="card" style="color:var(--accent-red)">${data.error}</div>`;
+          return;
+        }
+
+        renderCharacter(data, resultEl);
+      } catch (e) {
+        resultEl.innerHTML = `<div class="card" style="color:var(--accent-red)">Erreur: ${e.message}</div>`;
+      }
+    }
+
+    function renderCharacter(data, el) {
+      const c = data.character;
+      let html = '';
+
+      // Character header
+      html += `
+        <div class="card">
+          <div class="character-header">
+            ${c.avatar ? `<img class="character-avatar" src="${c.avatar}" alt="${c.name}" />` : '<div class="character-avatar" style="display:flex;align-items:center;justify-content:center;font-size:24px">&#128100;</div>'}
+            <div class="character-info">
+              <h2>${c.name}</h2>
+              <div class="character-meta">
+                <span>${c.realm}</span>
+                <span>${c.race} ${c.className}</span>
+                ${c.class !== c.className ? `<span>${c.class}</span>` : ''}
+                <span>Niveau ${c.level}</span>
+                ${c.itemLevel ? `<span>iLvl ${c.itemLevel}</span>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      // Raids
+      if (data.raids && data.raids.length > 0) {
+        for (const raid of data.raids) {
+          let modesHtml = '';
+          let diffTabsHtml = '<div class="diff-tabs">';
+          let diffContents = '';
+
+          raid.modes.forEach((mode, i) => {
+            const id = `raid-${raid.name.replace(/\s/g, '-')}-${i}`;
+            diffTabsHtml += `<div class="diff-tab ${i === 0 ? 'active' : ''}" onclick="switchDiff(this, '${id}')">${mode.difficulty} (${mode.killed}/${mode.total})</div>`;
+            diffContents += `<div class="diff-content ${i === 0 ? '' : 'hidden'}" id="${id}"><div class="boss-grid">`;
+            for (const enc of mode.encounters) {
+              diffContents += `
+                <div class="boss-item">
+                  <span class="boss-dot ${enc.killed ? 'killed' : 'alive'}"></span>
+                  <span class="boss-name">${enc.name}</span>
+                  ${enc.kills > 0 ? `<span class="boss-kills">${enc.kills}x</span>` : ''}
+                </div>`;
+            }
+            diffContents += '</div></div>';
+          });
+
+          diffTabsHtml += '</div>';
+
+          html += `
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">${raid.name}</span>
+              </div>
+              ${diffTabsHtml}
+              ${diffContents}
+            </div>`;
+        }
+      }
+
+      // PvP
+      if (data.pvp && data.pvp.length > 0) {
+        let pvpRows = '';
+        for (const b of data.pvp) {
+          const winRate = b.played > 0 ? Math.round((b.won / b.played) * 100) : 0;
+          pvpRows += `
+            <tr>
+              <td>${b.type}</td>
+              <td class="text-blue" style="font-weight:600">${b.rating}</td>
+              <td class="text-green">${b.won}</td>
+              <td class="text-red">${b.lost}</td>
+              <td>${b.played}</td>
+              <td>${winRate}%</td>
+            </tr>`;
+        }
+
+        html += `
+          <div class="card">
+            <div class="card-header"><span class="card-title">PvP</span></div>
+            <table class="data-table">
+              <thead><tr><th>Bracket</th><th>Rating</th><th>Victoires</th><th>Defaites</th><th>Joues</th><th>Winrate</th></tr></thead>
+              <tbody>${pvpRows}</tbody>
+            </table>
+          </div>`;
+      }
+
+      el.innerHTML = html;
+    }
+
+    function switchDiff(tab, id) {
+      const card = tab.closest('.card');
+      card.querySelectorAll('.diff-tab').forEach(t => t.classList.remove('active'));
+      card.querySelectorAll('.diff-content').forEach(c => c.classList.add('hidden'));
+      tab.classList.add('active');
+      const target = document.getElementById(id);
+      if (target) target.classList.remove('hidden');
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+    function rgbToHex(r, g, b) {
+      const toHex = (v) => {
+        const h = Math.round(v * 255).toString(16);
+        return h.length === 1 ? '0' + h : h;
+      };
+      return '#' + toHex(r) + toHex(g) + toHex(b);
+    }
+
+    // Allow enter key on character search
+    document.getElementById('charName').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchCharacter();
+    });
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    connectWS();
+    loadInitial();
+  </script>
+
+  <style>.hidden { display: none !important; }</style>
+</body>
+</html>

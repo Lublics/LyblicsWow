@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(cmd:*)",
+      "Bash(cd /c/Users/renau/Documents/GitHub/LyblicsWow && npm install 2>&1)",
+      "Bash(true:*)"
+    ]
+  }
+}

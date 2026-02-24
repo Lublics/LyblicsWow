@@ -1,0 +1,15 @@
+{
+  "name": "lyblics-wow-tracker",
+  "version": "1.0.0",
+  "description": "Panel de gestion pour addons WoW Lyblics",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js --dev"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}
