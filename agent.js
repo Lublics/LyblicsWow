@@ -323,25 +323,96 @@ function checkAndSyncAddons() {
 
 // ── Chat Log Bridge ─────────────────────────────────────────────────────────────
 const LYB_REGEX = /##LYB##(.+?)##/g;
+const LYBF_REGEX = /##LYBF##(.+?)##/g;
+const LYBM_REGEX = /##LYBM##(.+?)##/g;
+const LYBS_REGEX = /##LYBS##(.+?)##/g;
+
+// Accumulated live state from chat log (merged across message types)
+let chatLogLiveData = {};
 
 function parseLybLine(match) {
   const fields = match.split('|');
   if (fields.length < 10) return null;
   return {
-    ts: Math.floor(Date.now() / 1000),
-    player: {
-      name: fields[0],
-      realm: fields[1],
-      class: fields[2],
-      level: parseInt(fields[3], 10) || 0,
-      zone: fields[4],
-      subzone: fields[5],
-      gold: parseInt(fields[6], 10) || 0,
-      fps: parseInt(fields[7], 10) || 0,
-      latencyHome: parseInt(fields[8], 10) || 0,
-      latencyWorld: parseInt(fields[9], 10) || 0,
-    },
+    name: fields[0],
+    realm: fields[1],
+    class: fields[2],
+    level: parseInt(fields[3], 10) || 0,
+    zone: fields[4],
+    subzone: fields[5],
+    gold: parseInt(fields[6], 10) || 0,
+    fps: parseInt(fields[7], 10) || 0,
+    latencyHome: parseInt(fields[8], 10) || 0,
+    latencyWorld: parseInt(fields[9], 10) || 0,
   };
+}
+
+function parseFishingLine(match) {
+  const f = match.split('|');
+  if (f.length < 6) return null;
+  return {
+    totalCatches: parseInt(f[0]) || 0,
+    totalCasts: parseInt(f[1]) || 0,
+    totalTime: parseInt(f[2]) || 0,
+    sessions: parseInt(f[3]) || 0,
+    bestCatches: parseInt(f[4]) || 0,
+    bestRate: parseFloat(f[5]) || 0,
+  };
+}
+
+function parseMiningLine(match) {
+  const f = match.split('|');
+  if (f.length < 1) return null;
+  const result = {
+    stats: { totalMined: parseInt(f[0]) || 0, oreCounts: {} },
+  };
+  for (let i = 1; i < f.length; i++) {
+    const sep = f[i].indexOf(':');
+    if (sep > 0) {
+      const ore = f[i].substring(0, sep);
+      const count = parseInt(f[i].substring(sep + 1)) || 0;
+      result.stats.oreCounts[ore] = count;
+    }
+  }
+  return result;
+}
+
+function parseSettingsLine(match) {
+  const result = {};
+  const parts = match.split('|');
+  for (const part of parts) {
+    const v = part.split(':');
+    const type = v[0];
+    if (type === 'fp') {
+      result.fps = {
+        currentProfile: v[1] || 'original',
+        targetFPS: parseInt(v[2]) || 60,
+        autoMode: v[3] === '1',
+        gcEnabled: v[4] === '1',
+      };
+    } else if (type === 'ar') {
+      result.autorepair = {
+        enabled: v[1] === '1',
+        verbose: v[2] === '1',
+        useGuildBank: v[3] === '1',
+      };
+    } else if (type === 'as') {
+      result.autosell = {
+        enabled: v[1] === '1',
+        verbose: v[2] === '1',
+      };
+    } else if (type === 'np') {
+      result.nameplates = {
+        enabled: v[1] === '1',
+        colorByClass: v[2] === '1',
+        colorByLevel: v[3] === '1',
+        colorHostileByHealth: v[4] === '1',
+        showHealthPct: v[5] === '1',
+        showLevel: v[6] === '1',
+      };
+    }
+  }
+  return result;
 }
 
 let chatLogRetryInterval = null;
@@ -387,6 +458,7 @@ function stopChatLogTail() {
   }
   chatLogActive = false;
   chatLogOffset = 0;
+  chatLogLiveData = {};
 }
 
 function checkChatLog() {
@@ -413,25 +485,86 @@ function checkChatLog() {
     chatLogOffset = stat.size;
 
     const newContent = buffer.toString('utf-8');
-
-    // Find all ##LYB## matches
+    let changed = false;
+    let addonChanged = false;
     let match;
-    let lastPayload = null;
+
+    // Parse ##LYB## player data
     LYB_REGEX.lastIndex = 0;
     while ((match = LYB_REGEX.exec(newContent)) !== null) {
-      const payload = parseLybLine(match[1]);
-      if (payload) lastPayload = payload;
+      const player = parseLybLine(match[1]);
+      if (player) {
+        chatLogLiveData.ts = Math.floor(Date.now() / 1000);
+        chatLogLiveData.player = player;
+        changed = true;
+      }
     }
 
-    // Only send the most recent one (avoids flooding if multiple lines arrived)
-    if (lastPayload) {
-      cachedLiveData = lastPayload;
-      sendToServer('/api/sync/live', lastPayload)
+    // Parse ##LYBF## fishing data
+    LYBF_REGEX.lastIndex = 0;
+    while ((match = LYBF_REGEX.exec(newContent)) !== null) {
+      const fishing = parseFishingLine(match[1]);
+      if (fishing) {
+        chatLogLiveData.fishing = fishing;
+        cachedAddonData.fishing = fishing;
+        changed = true;
+        addonChanged = true;
+      }
+    }
+
+    // Parse ##LYBM## mining data
+    LYBM_REGEX.lastIndex = 0;
+    while ((match = LYBM_REGEX.exec(newContent)) !== null) {
+      const mining = parseMiningLine(match[1]);
+      if (mining) {
+        chatLogLiveData.mining = mining;
+        cachedAddonData.mining = mining;
+        changed = true;
+        addonChanged = true;
+      }
+    }
+
+    // Parse ##LYBS## settings data (fps addon, autorepair, autosell, nameplates)
+    LYBS_REGEX.lastIndex = 0;
+    while ((match = LYBS_REGEX.exec(newContent)) !== null) {
+      const settings = parseSettingsLine(match[1]);
+      if (settings) {
+        if (settings.fps) { chatLogLiveData.fps = settings.fps; cachedAddonData.fps = settings.fps; }
+        if (settings.autorepair) { cachedAddonData.autorepair = settings.autorepair; }
+        if (settings.autosell) { cachedAddonData.autosell = settings.autosell; }
+        if (settings.nameplates) { cachedAddonData.nameplates = settings.nameplates; }
+        chatLogLiveData.utilities = {
+          autorepair: settings.autorepair || chatLogLiveData.utilities?.autorepair,
+          autosell: settings.autosell || chatLogLiveData.utilities?.autosell,
+          nameplates: settings.nameplates || chatLogLiveData.utilities?.nameplates,
+        };
+        changed = true;
+        addonChanged = true;
+      }
+    }
+
+    // Send merged live data
+    if (changed && chatLogLiveData.player) {
+      cachedLiveData = chatLogLiveData;
+      sendToServer('/api/sync/live', chatLogLiveData)
         .then(() => {
-          const p = lastPayload.player;
+          const p = chatLogLiveData.player;
           log(`Live (chatlog): ${p.name} | FPS ${p.fps} | ${p.zone}${p.subzone ? ' - ' + p.subzone : ''} | ${p.gold}g`);
         })
         .catch((e) => logError(`Sync live (chatlog) failed: ${e.message}`));
+    }
+
+    // Also send addon data separately for pages that read from addonData
+    if (addonChanged) {
+      sendToServer('/api/sync/addons', cachedAddonData)
+        .then(() => {
+          const types = [];
+          if (chatLogLiveData.fishing) types.push('fishing');
+          if (chatLogLiveData.mining) types.push('mining');
+          if (chatLogLiveData.fps) types.push('fps');
+          if (types.length) log(`Addons (chatlog): ${types.join(', ')}`);
+        })
+        .catch((e) => logError(`Sync addons (chatlog) failed: ${e.message}`));
     }
   } catch (e) {
     // File locked by WoW - skip silently

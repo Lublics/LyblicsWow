@@ -1370,7 +1370,7 @@
       }
 
       // Mining card
-      const mine = addonData.mining;
+      const mine = liveData?.mining || addonData.mining;
       if (mine) {
         const totalMined = mine.stats?.totalMined || 0;
         const zoneCount = Object.keys(mine.zones || {}).length;
@@ -1402,9 +1402,9 @@
       }
 
       // Utilities summary
-      const repair = addonData.autorepair;
-      const sell = addonData.autosell;
-      const np = addonData.nameplates;
+      const repair = liveData?.utilities?.autorepair || addonData.autorepair;
+      const sell = liveData?.utilities?.autosell || addonData.autosell;
+      const np = liveData?.utilities?.nameplates || addonData.nameplates;
       if (repair || sell || np) {
         const activeCount = [repair?.enabled, sell?.enabled, np?.enabled].filter(Boolean).length;
         html += `
@@ -1439,17 +1439,18 @@
     function renderFPS() {
       const fps = addonData.fps;
       const live = liveData?.fps;
+      const livePlayer = liveData?.player;
       const el = document.getElementById('fpsContent');
-      if (!fps && !live) {
+      if (!fps && !live && !livePlayer) {
         el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#9889;</div><div class="no-data-text">Aucune donnee FPS. Connecte-toi a WoW.</div></div>`;
         return;
       }
 
       const profile = live?.currentProfile || fps?.currentProfile || 'original';
       const profileColors = { performance: 'badge-green', balanced: 'badge-orange', ultra: 'badge-purple', original: 'badge-blue' };
-      const liveFPS = live?.liveFPS;
-      const latHome = live?.latencyHome;
-      const latWorld = live?.latencyWorld;
+      const liveFPS = livePlayer?.fps || live?.liveFPS || null;
+      const latHome = livePlayer?.latencyHome || live?.latencyHome || null;
+      const latWorld = livePlayer?.latencyWorld || live?.latencyWorld || null;
 
       let cvarsHtml = '';
       const cvars = live?.originalCVars || fps?.originalCVars;
@@ -1591,7 +1592,7 @@
 
     // ── Mining ──────────────────────────────────────────────────────────────
     function renderMining() {
-      const mine = addonData.mining;
+      const mine = liveData?.mining || addonData.mining;
       const el = document.getElementById('miningContent');
       if (!mine) {
         el.innerHTML = `<div class="no-data"><div class="no-data-icon">&#9935;</div><div class="no-data-text">Aucune donnee de minage. Minons !</div></div>`;
@@ -1678,9 +1679,9 @@
 
     // ── Utilities ───────────────────────────────────────────────────────────
     function renderUtilities() {
-      const repair = addonData.autorepair;
-      const sell = addonData.autosell;
-      const np = addonData.nameplates;
+      const repair = liveData?.utilities?.autorepair || addonData.autorepair;
+      const sell = liveData?.utilities?.autosell || addonData.autosell;
+      const np = liveData?.utilities?.nameplates || addonData.nameplates;
       const el = document.getElementById('utilitiesContent');
 
       if (!repair && !sell && !np) {
