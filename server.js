@@ -294,55 +294,109 @@ app.get('/api/mounts', async (req, res) => {
   } catch (e) { res.json({ error: e.message }); }
 });
 
-// ── API: Icon Proxy (cached) ─────────────────────────────────────────────────
-const iconCache = new Map();
+// ── API: Icon Proxy (cached + dedup + fallback) ─────────────────────────────
+const iconCache = new Map();      // key → url string or null (failure)
+const iconInFlight = new Map();   // key → Promise (dedup concurrent requests)
+
+function getNamespaceFallbacks(version) {
+  if (version === 'retail') return ['static-eu'];
+  if (version === 'classic_era') return ['static-classic1x-eu', 'static-eu'];
+  return ['static-classic-eu', 'static-eu'];
+}
+
+async function resolveItemIcon(itemId, version) {
+  const key = `item-${version}-${itemId}`;
+  if (iconCache.has(key)) return iconCache.get(key);
+  if (iconInFlight.has(key)) return iconInFlight.get(key);
+
+  const promise = (async () => {
+    for (const ns of getNamespaceFallbacks(version)) {
+      try {
+        const media = await blizzardRequest(`/data/wow/media/item/${itemId}`, ns);
+        if (media.status === 200 && media.data.assets) {
+          const icon = media.data.assets.find(a => a.key === 'icon');
+          if (icon) { iconCache.set(key, icon.value); iconInFlight.delete(key); return icon.value; }
+        }
+      } catch {}
+    }
+    iconCache.set(key, null);
+    iconInFlight.delete(key);
+    return null;
+  })();
+
+  iconInFlight.set(key, promise);
+  return promise;
+}
+
+async function resolveMountIcon(mountId, version) {
+  const key = `mount-${version}-${mountId}`;
+  if (iconCache.has(key)) return iconCache.get(key);
+  if (iconInFlight.has(key)) return iconInFlight.get(key);
+
+  const promise = (async () => {
+    for (const ns of getNamespaceFallbacks(version)) {
+      try {
+        const mount = await blizzardRequest(`/data/wow/mount/${mountId}`, ns);
+        if (mount.status === 200 && mount.data.creature_displays?.length > 0) {
+          const displayId = mount.data.creature_displays[0].id;
+          const media = await blizzardRequest(`/data/wow/media/creature-display/${displayId}`, ns);
+          if (media.status === 200 && media.data.assets) {
+            const asset = media.data.assets.find(a => a.key === 'zoom') || media.data.assets.find(a => a.key === 'icon') || media.data.assets[0];
+            if (asset) { iconCache.set(key, asset.value); iconInFlight.delete(key); return asset.value; }
+          }
+        }
+      } catch {}
+    }
+    iconCache.set(key, null);
+    iconInFlight.delete(key);
+    return null;
+  })();
+
+  iconInFlight.set(key, promise);
+  return promise;
+}
+
+// Batch resolve with concurrency limit
+async function batchResolve(items, concurrency, resolveFn) {
+  const results = new Array(items.length);
+  let idx = 0;
+  async function worker() {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await resolveFn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
+}
 
 app.get('/api/icon/item/:id', async (req, res) => {
   const { id } = req.params;
   const version = req.query.version || 'classic';
-  const key = `item-${version}-${id}`;
-
-  if (iconCache.has(key)) return res.redirect(iconCache.get(key));
-
-  const ns = { retail: 'static-eu', classic: 'static-classic-eu', classic_era: 'static-classic1x-eu' }[version] || 'static-classic-eu';
-
-  try {
-    const media = await blizzardRequest(`/data/wow/media/item/${id}`, ns);
-    if (media.status === 200 && media.data.assets) {
-      const icon = media.data.assets.find(a => a.key === 'icon');
-      if (icon) {
-        iconCache.set(key, icon.value);
-        return res.redirect(icon.value);
-      }
-    }
-  } catch {}
+  const url = await resolveItemIcon(id, version);
+  if (url) return res.redirect(url);
   res.status(404).send('');
 });
 
 app.get('/api/icon/mount/:id', async (req, res) => {
   const { id } = req.params;
   const version = req.query.version || 'classic';
-  const key = `mount-${version}-${id}`;
-
-  if (iconCache.has(key)) return res.redirect(iconCache.get(key));
-
-  const ns = { retail: 'static-eu', classic: 'static-classic-eu', classic_era: 'static-classic1x-eu' }[version] || 'static-classic-eu';
-
-  try {
-    const mount = await blizzardRequest(`/data/wow/mount/${id}`, ns);
-    if (mount.status === 200 && mount.data.creature_displays?.length > 0) {
-      const displayId = mount.data.creature_displays[0].id;
-      const media = await blizzardRequest(`/data/wow/media/creature-display/${displayId}`, ns);
-      if (media.status === 200 && media.data.assets) {
-        const asset = media.data.assets.find(a => a.key === 'zoom') || media.data.assets[0];
-        if (asset) {
-          iconCache.set(key, asset.value);
-          return res.redirect(asset.value);
-        }
-      }
-    }
-  } catch {}
+  const url = await resolveMountIcon(id, version);
+  if (url) return res.redirect(url);
   res.status(404).send('');
+});
+
+// Batch mount icons endpoint (fetch multiple at once)
+app.get('/api/icons/mounts', async (req, res) => {
+  const { ids, version = 'classic' } = req.query;
+  if (!ids) return res.json({});
+  const mountIds = ids.split(',').slice(0, 50); // max 50 per batch
+  const results = {};
+  await batchResolve(mountIds, 6, async (id) => {
+    const url = await resolveMountIcon(id, version);
+    if (url) results[id] = url;
+  });
+  res.json(results);
 });
 
 // ── API: Full Character Profile ──────────────────────────────────────────────
@@ -591,6 +645,28 @@ app.get('/api/character/full', async (req, res) => {
     // Stats
     if (stats.status === 200) {
       result.stats = stats.data;
+    }
+
+    // Pre-fetch item icons (only ~16 items, fast)
+    if (result.equipment.length > 0) {
+      await batchResolve(result.equipment, 8, async (item) => {
+        if (item.itemId) {
+          item.icon = await resolveItemIcon(item.itemId, version) || '';
+        }
+      });
+    }
+
+    // Pre-fetch mount icons for owned mounts (batch with concurrency limit)
+    if (result.mounts && result.mounts.owned.length > 0) {
+      await batchResolve(result.mounts.owned, 6, async (mount) => {
+        mount.icon = await resolveMountIcon(mount.id, version) || '';
+      });
+    }
+    // Also missing mounts (lower priority, still do it)
+    if (result.mounts && result.mounts.missing.length > 0) {
+      await batchResolve(result.mounts.missing, 6, async (mount) => {
+        mount.icon = await resolveMountIcon(mount.id, version) || '';
+      });
     }
 
     res.json(result);
