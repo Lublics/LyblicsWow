@@ -376,6 +376,67 @@ async function batchResolve(items, concurrency, resolveFn) {
   return results;
 }
 
+// ── Mount Guide (background-loaded, cached) ─────────────────────────────────
+const mountGuideCache = { loaded: false, loading: false, mounts: [], progress: 0, total: 0 };
+
+async function loadMountGuide() {
+  if (mountGuideCache.loaded || mountGuideCache.loading) return;
+  mountGuideCache.loading = true;
+  console.log('  [MountGuide] Starting background load...');
+
+  try {
+    const index = await blizzardRequest('/data/wow/mount/index', 'static-eu');
+    if (index.status !== 200) { mountGuideCache.loading = false; return; }
+
+    const allMounts = index.data.mounts || [];
+    mountGuideCache.total = allMounts.length;
+
+    await batchResolve(allMounts, 15, async (m) => {
+      try {
+        const detail = await blizzardRequest(`/data/wow/mount/${m.id}`, 'static-eu');
+        if (detail.status === 200) {
+          const d = detail.data;
+          mountGuideCache.mounts.push({
+            id: m.id,
+            name: d.name || m.name,
+            description: d.description || '',
+            source: d.source?.type || 'UNKNOWN',
+            sourceName: d.source?.name || 'Inconnu',
+            faction: d.faction?.type || null,
+            factionName: d.faction?.name || null,
+            excludeIfUncollected: d.should_exclude_if_uncollected || false,
+          });
+        }
+      } catch {}
+      mountGuideCache.progress++;
+      if (mountGuideCache.progress % 200 === 0) {
+        console.log(`  [MountGuide] ${mountGuideCache.progress}/${mountGuideCache.total}...`);
+      }
+    });
+
+    // Sort by name
+    mountGuideCache.mounts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    mountGuideCache.loaded = true;
+    console.log(`  [MountGuide] Done! ${mountGuideCache.mounts.length} mounts loaded.`);
+  } catch (e) {
+    console.error('  [MountGuide] Error:', e.message);
+  }
+  mountGuideCache.loading = false;
+}
+
+app.get('/api/mounts/guide', (req, res) => {
+  if (!mountGuideCache.loaded && !mountGuideCache.loading) {
+    loadMountGuide(); // fire and forget
+  }
+  res.json({
+    loaded: mountGuideCache.loaded,
+    loading: mountGuideCache.loading,
+    progress: mountGuideCache.progress,
+    total: mountGuideCache.total,
+    mounts: mountGuideCache.mounts,
+  });
+});
+
 app.get('/api/icon/item/:id', async (req, res) => {
   const { id } = req.params;
   const version = req.query.version || 'classic';
