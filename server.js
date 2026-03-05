@@ -294,6 +294,257 @@ app.get('/api/mounts', async (req, res) => {
   } catch (e) { res.json({ error: e.message }); }
 });
 
+// ── API: Full Character Profile ──────────────────────────────────────────────
+app.get('/api/character/full', async (req, res) => {
+  const { realm, name, version = 'classic' } = req.query;
+  if (!realm || !name) return res.json({ error: 'realm et name requis' });
+
+  const namespaces = {
+    retail: { profile: 'profile-eu', static: 'static-eu' },
+    classic: { profile: 'profile-classic-eu', static: 'static-classic-eu' },
+    classic_era: { profile: 'profile-classic1x-eu', static: 'static-classic1x-eu' },
+  };
+  const ns = namespaces[version] || namespaces.classic;
+  const realmSlug = slugify(realm);
+  const charName = name.toLowerCase();
+  const base = `/profile/wow/character/${realmSlug}/${charName}`;
+
+  try {
+    const profile = await blizzardRequest(base, ns.profile);
+    if (profile.status === 404) return res.json({ error: 'Personnage non trouve' });
+    if (profile.status !== 200) return res.json({ error: `Erreur API (${profile.status})` });
+
+    const p = profile.data;
+
+    // Fetch everything in parallel
+    const [media, equipment, raids, dungeons, pvp, charMounts, allMounts, professions, reputations, achievements, titles, stats] = await Promise.all([
+      blizzardRequest(`${base}/character-media`, ns.profile),
+      blizzardRequest(`${base}/equipment`, ns.profile),
+      blizzardRequest(`${base}/encounters/raids`, ns.profile),
+      blizzardRequest(`${base}/encounters/dungeons`, ns.profile),
+      blizzardRequest(`${base}/pvp-summary`, ns.profile),
+      blizzardRequest(`${base}/collections/mounts`, ns.profile),
+      blizzardRequest('/data/wow/mount/index', ns.static),
+      blizzardRequest(`${base}/professions`, ns.profile),
+      blizzardRequest(`${base}/reputations`, ns.profile),
+      blizzardRequest(`${base}/achievements`, ns.profile),
+      blizzardRequest(`${base}/titles`, ns.profile),
+      blizzardRequest(`${base}/statistics`, ns.profile),
+    ]);
+
+    // Avatar
+    let avatar = '';
+    if (media.status === 200 && media.data.assets) {
+      const av = media.data.assets.find(a => a.key === 'avatar');
+      if (av) avatar = av.value;
+    }
+    let inset = '';
+    if (media.status === 200 && media.data.assets) {
+      const ins = media.data.assets.find(a => a.key === 'inset');
+      if (ins) inset = ins.value;
+    }
+    let mainRaw = '';
+    if (media.status === 200 && media.data.assets) {
+      const mr = media.data.assets.find(a => a.key === 'main-raw');
+      if (mr) mainRaw = mr.value;
+    }
+
+    const result = {
+      character: {
+        name: p.name || name,
+        realm: p.realm?.name || realm,
+        realmSlug,
+        level: p.level || 0,
+        race: p.race?.name || '',
+        class: p.active_spec?.name || p.character_class?.name || '',
+        className: p.character_class?.name || '',
+        faction: p.faction?.name || '',
+        itemLevel: p.equipped_item_level || 0,
+        averageItemLevel: p.average_item_level || 0,
+        avatar, inset, mainRaw,
+        activeTitle: p.active_title?.display_string || '',
+        achievementPoints: p.achievement_points || 0,
+        lastLogin: p.last_login_timestamp || null,
+        version,
+      },
+      equipment: [],
+      raids: [],
+      dungeons: [],
+      pvp: [],
+      mounts: null,
+      professions: { primaries: [], secondaries: [] },
+      reputations: [],
+      achievements: { points: 0, recentCount: 0, categories: [] },
+      titles: [],
+      stats: null,
+    };
+
+    // Equipment
+    if (equipment.status === 200 && equipment.data.equipped_items) {
+      for (const item of equipment.data.equipped_items) {
+        result.equipment.push({
+          slot: item.slot?.type || '',
+          slotName: item.slot?.name || '',
+          name: item.name || '',
+          quality: item.quality?.type || 'COMMON',
+          qualityName: item.quality?.name || '',
+          level: item.level?.value || 0,
+          itemClass: item.item_class?.name || '',
+          itemSubclass: item.item_subclass?.name || '',
+          stats: (item.stats || []).map(s => ({ type: s.type?.name || '', value: s.value || 0 })),
+          enchantments: (item.enchantments || []).map(e => e.display_string || ''),
+          sockets: (item.sockets || []).map(s => ({ type: s.socket_type?.name || '', item: s.item?.name || '' })),
+          setName: item.set?.item_set?.name || '',
+        });
+      }
+    }
+
+    // Raids
+    if (raids.status === 200 && raids.data.expansions) {
+      for (const exp of raids.data.expansions) {
+        const expData = { name: exp.expansion?.name || '', instances: [] };
+        for (const inst of (exp.instances || [])) {
+          const instData = { name: inst.instance?.name || '', modes: [] };
+          for (const mode of (inst.modes || [])) {
+            const encounters = (mode.progress?.encounters || []).map(enc => ({
+              name: enc.encounter?.name || '', kills: enc.completed_count || 0,
+              killed: (enc.completed_count || 0) > 0, lastKill: enc.last_kill_timestamp || null,
+            }));
+            instData.modes.push({
+              difficulty: mode.difficulty?.name || '',
+              killed: mode.progress?.completed_count || 0,
+              total: mode.progress?.total_count || 0, encounters,
+            });
+          }
+          expData.instances.push(instData);
+        }
+        result.raids.push(expData);
+      }
+      result.raids.reverse();
+    }
+
+    // Dungeons
+    if (dungeons.status === 200 && dungeons.data.expansions) {
+      for (const exp of dungeons.data.expansions) {
+        const expData = { name: exp.expansion?.name || '', instances: [] };
+        for (const inst of (exp.instances || [])) {
+          const instData = { name: inst.instance?.name || '', modes: [] };
+          for (const mode of (inst.modes || [])) {
+            const encounters = (mode.progress?.encounters || []).map(enc => ({
+              name: enc.encounter?.name || '', kills: enc.completed_count || 0,
+              killed: (enc.completed_count || 0) > 0,
+            }));
+            instData.modes.push({
+              difficulty: mode.difficulty?.name || '',
+              killed: mode.progress?.completed_count || 0,
+              total: mode.progress?.total_count || 0, encounters,
+            });
+          }
+          expData.instances.push(instData);
+        }
+        result.dungeons.push(expData);
+      }
+      result.dungeons.reverse();
+    }
+
+    // PvP
+    if (pvp.status === 200 && pvp.data.brackets) {
+      for (const bracket of pvp.data.brackets) {
+        result.pvp.push({
+          type: bracket.bracket?.type || '',
+          rating: bracket.rating || 0,
+          won: bracket.season_match_statistics?.won || 0,
+          lost: bracket.season_match_statistics?.lost || 0,
+          played: bracket.season_match_statistics?.played || 0,
+        });
+      }
+    }
+
+    // Mounts
+    if (charMounts.status === 200) {
+      const ownedIds = new Set();
+      const owned = [];
+      for (const m of (charMounts.data.mounts || [])) {
+        const id = m.mount?.id || 0;
+        ownedIds.add(id);
+        owned.push({ id, name: m.mount?.name || 'Inconnu' });
+      }
+      const total = allMounts.data?.mounts?.length || 0;
+      const missing = [];
+      for (const m of (allMounts.data?.mounts || [])) {
+        if (!ownedIds.has(m.id)) missing.push({ id: m.id, name: m.name || 'Inconnu' });
+      }
+      owned.sort((a, b) => a.name.localeCompare(b.name));
+      missing.sort((a, b) => a.name.localeCompare(b.name));
+      result.mounts = {
+        ownedCount: owned.length, totalCount: total,
+        percentage: total > 0 ? Math.round((owned.length / total) * 1000) / 10 : 0,
+        owned, missing,
+      };
+    }
+
+    // Professions
+    if (professions.status === 200) {
+      for (const prof of (professions.data.primaries || [])) {
+        const tiers = (prof.tiers || []).map(t => ({
+          name: t.tier?.name || '', skillPoints: t.skill_points || 0, maxSkillPoints: t.max_skill_points || 0,
+          recipes: (t.known_recipes || []).map(r => r.name || ''),
+        }));
+        result.professions.primaries.push({ name: prof.profession?.name || '', tiers });
+      }
+      for (const prof of (professions.data.secondaries || [])) {
+        const tiers = (prof.tiers || []).map(t => ({
+          name: t.tier?.name || '', skillPoints: t.skill_points || 0, maxSkillPoints: t.max_skill_points || 0,
+        }));
+        result.professions.secondaries.push({ name: prof.profession?.name || '', tiers });
+      }
+    }
+
+    // Reputations
+    if (reputations.status === 200 && reputations.data.reputations) {
+      for (const rep of reputations.data.reputations) {
+        result.reputations.push({
+          faction: rep.faction?.name || '',
+          standing: rep.standing?.name || '',
+          value: rep.standing?.value || 0,
+          max: rep.standing?.max || 0,
+          tier: rep.standing?.tier || 0,
+        });
+      }
+      result.reputations.sort((a, b) => b.tier - a.tier || a.faction.localeCompare(b.faction));
+    }
+
+    // Achievements
+    if (achievements.status === 200) {
+      result.achievements.points = achievements.data.total_points || p.achievement_points || 0;
+      result.achievements.recentCount = (achievements.data.recent_events || []).length;
+      if (achievements.data.categories) {
+        for (const cat of achievements.data.categories) {
+          result.achievements.categories.push({
+            name: cat.category?.name || '',
+            points: cat.points || 0,
+            total: cat.total_points || 0,
+          });
+        }
+      }
+    }
+
+    // Titles
+    if (titles.status === 200 && titles.data.titles) {
+      for (const t of titles.data.titles) {
+        result.titles.push({ id: t.id || 0, name: t.name || '', displayString: t.display_string || '' });
+      }
+    }
+
+    // Stats
+    if (stats.status === 200) {
+      result.stats = stats.data;
+    }
+
+    res.json(result);
+  } catch (e) { res.json({ error: e.message }); }
+});
+
 // ── WebSocket ──────────────────────────────────────────────────────────────────
 const wss = new WebSocketServer({ server });
 

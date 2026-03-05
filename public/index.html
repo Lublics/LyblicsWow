@@ -540,6 +540,496 @@
       display: flex;
       gap: 12px;
       margin-top: 4px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Saved Characters Bar ──────────────────────────────────────────── */
+    .saved-chars {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .saved-char-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .saved-char-card:hover { border-color: var(--accent-blue); background: var(--bg-hover); }
+    .saved-char-card.active { border-color: var(--accent-blue); box-shadow: 0 0 0 1px var(--accent-blue); }
+
+    .saved-char-card img {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+
+    .saved-char-card .char-placeholder {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .saved-char-name { font-size: 13px; font-weight: 600; }
+    .saved-char-details { font-size: 11px; color: var(--text-muted); }
+
+    .saved-char-remove {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-red);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 10px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .saved-char-card:hover .saved-char-remove { display: flex; }
+
+    .add-char-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      padding: 8px;
+      background: var(--bg-card);
+      border: 1px dashed var(--border-light);
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 20px;
+      transition: all var(--transition);
+    }
+
+    .add-char-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+    /* ── Character Profile Hero ────────────────────────────────────────── */
+    .char-hero {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .char-hero-banner {
+      height: 160px;
+      background-size: cover;
+      background-position: center top;
+      position: relative;
+    }
+
+    .char-hero-banner::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      background: linear-gradient(transparent, var(--bg-card));
+    }
+
+    .char-hero-content {
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      padding: 0 24px 20px;
+      margin-top: -50px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .char-hero-avatar {
+      width: 84px;
+      height: 84px;
+      border-radius: var(--radius-lg);
+      border: 3px solid var(--bg-card);
+      object-fit: cover;
+      background: var(--bg-secondary);
+      flex-shrink: 0;
+    }
+
+    .char-hero-info { flex: 1; min-width: 0; }
+
+    .char-hero-name {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .char-hero-title {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .char-hero-meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+    }
+
+    .char-hero-meta b { color: var(--text-primary); }
+
+    .char-hero-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      align-self: center;
+      margin-top: 10px;
+    }
+
+    .btn-save {
+      padding: 6px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--accent-green);
+      background: transparent;
+      color: var(--accent-green);
+      transition: all var(--transition);
+    }
+
+    .btn-save:hover { background: var(--accent-green); color: #fff; }
+    .btn-save.saved { background: var(--accent-green); color: #fff; opacity: 0.7; cursor: default; }
+
+    /* ── Character Tabs ─────────────────────────────────────────────── */
+    .char-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 4px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .char-tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all var(--transition);
+      white-space: nowrap;
+      border: none;
+      background: transparent;
+    }
+
+    .char-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+    .char-tab.active { background: var(--accent-blue); color: #fff; }
+
+    .char-tab-content { display: none; }
+    .char-tab-content.active { display: block; }
+
+    /* ── Equipment Grid ─────────────────────────────────────────────── */
+    .equip-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 8px;
+    }
+
+    .equip-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--border);
+    }
+
+    .equip-item .equip-slot {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      min-width: 70px;
+    }
+
+    .equip-item .equip-name { font-size: 13px; font-weight: 500; flex: 1; }
+    .equip-item .equip-ilvl { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+    .equip-item .equip-details {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .quality-POOR { color: #9d9d9d; border-left-color: #9d9d9d; }
+    .quality-COMMON { color: var(--text-primary); border-left-color: var(--text-primary); }
+    .quality-UNCOMMON { color: #1eff00; border-left-color: #1eff00; }
+    .quality-RARE { color: #0070dd; border-left-color: #0070dd; }
+    .quality-EPIC { color: #a335ee; border-left-color: #a335ee; }
+    .quality-LEGENDARY { color: #ff8000; border-left-color: #ff8000; }
+    .quality-ARTIFACT { color: #e6cc80; border-left-color: #e6cc80; }
+    .quality-HEIRLOOM { color: #00ccff; border-left-color: #00ccff; }
+
+    /* ── Class Colors ─────────────────────────────────────────────── */
+    .class-warrior { color: #C79C6E; }
+    .class-paladin { color: #F58CBA; }
+    .class-hunter { color: #ABD473; }
+    .class-rogue { color: #FFF569; }
+    .class-priest { color: #FFFFFF; }
+    .class-deathknight { color: #C41F3B; }
+    .class-shaman { color: #0070DE; }
+    .class-mage { color: #69CCF0; }
+    .class-warlock { color: #9482C9; }
+    .class-monk { color: #00FF96; }
+    .class-druid { color: #FF7D0A; }
+    .class-demonhunter { color: #A330C9; }
+    .class-evoker { color: #33937F; }
+
+    /* ── Reputation ─────────────────────────────────────────────── */
+    .rep-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .rep-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .rep-name { flex: 1; font-size: 13px; min-width: 120px; }
+    .rep-standing { font-size: 12px; font-weight: 600; min-width: 80px; }
+
+    .rep-bar-wrap { flex: 2; min-width: 100px; }
+
+    .rep-bar {
+      height: 8px;
+      background: var(--bg-primary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .rep-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .rep-bar-text { font-size: 10px; color: var(--text-muted); margin-top: 2px; text-align: right; }
+
+    .standing-exalted { color: #1eff00; }
+    .standing-exalted .rep-bar-fill { background: #1eff00; }
+    .standing-revered { color: #00ccff; }
+    .standing-revered .rep-bar-fill { background: #00ccff; }
+    .standing-honored { color: #0070dd; }
+    .standing-honored .rep-bar-fill { background: #0070dd; }
+    .standing-friendly { color: #1eff00; }
+    .standing-friendly .rep-bar-fill { background: #1eff00; }
+    .standing-neutral { color: var(--text-secondary); }
+    .standing-neutral .rep-bar-fill { background: var(--text-secondary); }
+    .standing-unfriendly { color: var(--accent-orange); }
+    .standing-unfriendly .rep-bar-fill { background: var(--accent-orange); }
+    .standing-hostile { color: var(--accent-red); }
+    .standing-hostile .rep-bar-fill { background: var(--accent-red); }
+    .standing-hated { color: #cc0000; }
+    .standing-hated .rep-bar-fill { background: #cc0000; }
+
+    /* ── Profession Cards ──────────────────────────────────────── */
+    .prof-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+    }
+
+    .prof-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .prof-name { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+
+    .prof-tier {
+      margin-bottom: 8px;
+    }
+
+    .prof-tier-name { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+
+    .prof-bar {
+      height: 10px;
+      background: var(--bg-primary);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .prof-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-orange), var(--accent-cyan));
+      border-radius: 5px;
+    }
+
+    .prof-bar-text {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      text-align: right;
+    }
+
+    /* ── Achievement Categories ─────────────────────────────── */
+    .achiev-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .achiev-cat {
+      padding: 10px 14px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .achiev-cat-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .achiev-cat-points { font-size: 20px; font-weight: 700; color: var(--accent-orange); }
+    .achiev-cat-total { font-size: 11px; color: var(--text-muted); }
+
+    /* ── Stats Overview Cards ─────────────────────────────────── */
+    .char-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+    }
+
+    .char-stat-card {
+      padding: 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    .char-stat-value { font-size: 22px; font-weight: 700; color: var(--accent-blue); }
+    .char-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Dungeon Grid ────────────────────────────────────────── */
+    .dungeon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    .dungeon-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+
+    .dungeon-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .dungeon-mode { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+
+    /* ── Search Modal ──────────────────────────────────────── */
+    .char-search-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .char-search-overlay.open { display: flex; }
+
+    .char-search-modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+
+    .char-search-modal h3 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .char-search-modal .form-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .char-search-modal .form-row .form-group { flex: 1; }
+
+    .char-search-modal .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .btn-secondary {
+      padding: 8px 20px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      transition: all var(--transition);
+    }
+
+    .btn-secondary:hover { border-color: var(--border-light); color: var(--text-primary); }
+
+    /* ── Title List ───────────────────────────────────────── */
+    .title-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .title-tag {
+      padding: 4px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .title-tag.active-title {
+      border-color: var(--accent-orange);
+      color: var(--accent-orange);
     }
 
     /* ── Search Bar ────────────────────────────────────────────────────────── */
@@ -931,9 +1421,9 @@
         </div>
 
         <div class="nav-section">
-          <div class="nav-section-label">API Blizzard</div>
-          <div class="nav-item" data-page="character">
-            <span class="nav-icon">&#128100;</span> Personnage
+          <div class="nav-section-label">Personnages</div>
+          <div class="nav-item" data-page="characters">
+            <span class="nav-icon">&#128100;</span> Mes Personnages
           </div>
         </div>
       </nav>
@@ -1032,52 +1522,77 @@
         </div>
       </div>
 
-      <!-- ── Character (Blizzard API) ─────────────────────────────── -->
-      <div class="section" id="page-character">
-        <div class="page-header">
-          <h1 class="page-title">Recherche de personnage</h1>
-          <p class="page-subtitle">Progression, raids, PvP via l'API Blizzard</p>
+      <!-- ── Mes Personnages ─────────────────────────────────────── -->
+      <div class="section" id="page-characters">
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h1 class="page-title">Mes Personnages</h1>
+            <p class="page-subtitle">Suivi complet de vos personnages WoW - Classic & Retail</p>
+          </div>
+          <button class="btn btn-primary" onclick="openCharSearch()">+ Ajouter</button>
         </div>
 
-        <div class="card">
-          <div class="search-form">
+        <div class="saved-chars" id="savedCharsBar"></div>
+
+        <div id="charProfileArea">
+          <div class="no-data">
+            <div class="no-data-icon">&#128100;</div>
+            <div class="no-data-text">Ajoutez un personnage pour commencer le suivi</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Character Search Modal ─────────────────────────────── -->
+      <div class="char-search-overlay" id="charSearchOverlay" onclick="if(event.target===this)closeCharSearch()">
+        <div class="char-search-modal">
+          <h3>Rechercher un personnage</h3>
+          <div class="form-row">
             <div class="form-group">
-              <label>Personnage</label>
-              <input type="text" id="charName" placeholder="Nom du personnage" />
+              <label>Nom du personnage</label>
+              <input type="text" id="charSearchName" placeholder="Ex: Arthas" />
             </div>
+          </div>
+          <div class="form-row">
             <div class="form-group">
               <label>Royaume</label>
-              <select id="charRealm">
-                <option value="archimonde">Archimonde</option>
-                <option value="hyjal">Hyjal</option>
-                <option value="dalaran">Dalaran</option>
-                <option value="ysondre">Ysondre</option>
-                <option value="khaz-modan">Khaz Modan</option>
-                <option value="sargeras">Sargeras</option>
-                <option value="elune">Elune</option>
-                <option value="kael-thas">Kael'thas</option>
-                <option value="medivh">Medivh</option>
-                <option value="cho-gall">Cho'gall</option>
-                <option value="ner-zhul">Ner'zhul</option>
-                <option value="connected-chants-eternels">Chants Eternels</option>
-                <option value="connected-la-croisade-ecarlate">La Croisade Ecarlate</option>
-                <option value="sulfuron">Sulfuron</option>
-                <option value="illidan">Illidan</option>
+              <select id="charSearchRealm">
+                <optgroup label="FR - Classic & Retail">
+                  <option value="archimonde">Archimonde</option>
+                  <option value="hyjal">Hyjal</option>
+                  <option value="dalaran">Dalaran</option>
+                  <option value="ysondre">Ysondre</option>
+                  <option value="khaz-modan">Khaz Modan</option>
+                  <option value="sargeras">Sargeras</option>
+                  <option value="elune">Elune</option>
+                  <option value="kael-thas">Kael'thas</option>
+                  <option value="medivh">Medivh</option>
+                  <option value="cho-gall">Cho'gall</option>
+                  <option value="ner-zhul">Ner'zhul</option>
+                  <option value="connected-chants-eternels">Chants Eternels</option>
+                  <option value="connected-la-croisade-ecarlate">La Croisade Ecarlate</option>
+                  <option value="sulfuron">Sulfuron</option>
+                  <option value="illidan">Illidan</option>
+                </optgroup>
+                <optgroup label="FR - Classic Era">
+                  <option value="sulfuron">Sulfuron (Era)</option>
+                </optgroup>
               </select>
             </div>
             <div class="form-group">
               <label>Version</label>
-              <select id="charVersion">
+              <select id="charSearchVersion">
                 <option value="classic">Classic (MoP)</option>
                 <option value="retail">Retail</option>
                 <option value="classic_era">Classic Era</option>
               </select>
             </div>
-            <button class="btn btn-primary" onclick="searchCharacter()">Rechercher</button>
+          </div>
+          <div id="charSearchError" style="color:var(--accent-red);font-size:13px;margin-top:8px;display:none"></div>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeCharSearch()">Annuler</button>
+            <button class="btn btn-primary" id="charSearchBtn" onclick="doCharSearch()">Rechercher</button>
           </div>
         </div>
-
-        <div id="characterResult"></div>
       </div>
 
     </main>
@@ -1788,179 +2303,517 @@
       el.innerHTML = html;
     }
 
-    // ── Character Search (Blizzard API) ─────────────────────────────────────
-    async function searchCharacter() {
-      const name = document.getElementById('charName').value.trim();
-      const realm = document.getElementById('charRealm').value;
-      const version = document.getElementById('charVersion').value;
-      const resultEl = document.getElementById('characterResult');
+    // ── Character Management ────────────────────────────────────────────────
 
-      if (!name) {
-        resultEl.innerHTML = '<div class="card" style="color:var(--accent-red)">Entre un nom de personnage</div>';
+    const CLASS_SLUGS = {
+      'Guerrier': 'warrior', 'Warrior': 'warrior',
+      'Paladin': 'paladin',
+      'Chasseur': 'hunter', 'Hunter': 'hunter',
+      'Voleur': 'rogue', 'Rogue': 'rogue',
+      'Pretre': 'priest', 'Priest': 'priest', 'Prêtre': 'priest',
+      'Chevalier de la mort': 'deathknight', 'Death Knight': 'deathknight',
+      'Chaman': 'shaman', 'Shaman': 'shaman',
+      'Mage': 'mage',
+      'Demoniste': 'warlock', 'Warlock': 'warlock', 'Démoniste': 'warlock',
+      'Moine': 'monk', 'Monk': 'monk',
+      'Druide': 'druid', 'Druid': 'druid',
+      'Chasseur de demons': 'demonhunter', 'Demon Hunter': 'demonhunter',
+      'Evocateur': 'evoker', 'Evoker': 'evoker', 'Évocateur': 'evoker',
+    };
+
+    function getClassSlug(className) {
+      return CLASS_SLUGS[className] || className?.toLowerCase().replace(/\s+/g, '') || '';
+    }
+
+    // Saved characters in localStorage
+    function getSavedChars() {
+      try { return JSON.parse(localStorage.getItem('lyblics_chars') || '[]'); }
+      catch { return []; }
+    }
+
+    function saveChars(chars) {
+      localStorage.setItem('lyblics_chars', JSON.stringify(chars));
+    }
+
+    function addSavedChar(charInfo) {
+      const chars = getSavedChars();
+      const key = `${charInfo.name}-${charInfo.realm}-${charInfo.version}`.toLowerCase();
+      const idx = chars.findIndex(c => `${c.name}-${c.realm}-${c.version}`.toLowerCase() === key);
+      if (idx >= 0) chars[idx] = charInfo;
+      else chars.push(charInfo);
+      saveChars(chars);
+      renderSavedCharsBar();
+    }
+
+    function removeSavedChar(index) {
+      const chars = getSavedChars();
+      chars.splice(index, 1);
+      saveChars(chars);
+      renderSavedCharsBar();
+      document.getElementById('charProfileArea').innerHTML = `
+        <div class="no-data">
+          <div class="no-data-icon">&#128100;</div>
+          <div class="no-data-text">Selectionnez un personnage ou ajoutez-en un nouveau</div>
+        </div>`;
+    }
+
+    let currentCharData = null;
+
+    function renderSavedCharsBar() {
+      const chars = getSavedChars();
+      const bar = document.getElementById('savedCharsBar');
+      if (!chars.length) {
+        bar.innerHTML = '';
         return;
       }
+      let html = '';
+      chars.forEach((c, i) => {
+        const versionLabel = c.version === 'retail' ? 'Retail' : c.version === 'classic_era' ? 'Era' : 'Classic';
+        html += `
+          <div class="saved-char-card" onclick="loadSavedChar(${i})" title="${c.name} - ${c.realm} (${versionLabel})">
+            ${c.avatar ? `<img src="${c.avatar}" alt="${c.name}" />` : `<div class="char-placeholder">&#128100;</div>`}
+            <div>
+              <div class="saved-char-name class-${getClassSlug(c.className)}">${c.name}</div>
+              <div class="saved-char-details">${c.realm} - ${versionLabel} - Niv.${c.level}</div>
+            </div>
+            <button class="saved-char-remove" onclick="event.stopPropagation();removeSavedChar(${i})">&#10005;</button>
+          </div>`;
+      });
+      html += `<div class="add-char-btn" onclick="openCharSearch()" title="Ajouter un personnage">+</div>`;
+      bar.innerHTML = html;
+    }
 
-      resultEl.innerHTML = '<div class="card" style="text-align:center"><span class="loading-spinner"></span> Recherche en cours...</div>';
-
+    async function loadSavedChar(index) {
+      const chars = getSavedChars();
+      const c = chars[index];
+      if (!c) return;
+      const area = document.getElementById('charProfileArea');
+      area.innerHTML = '<div class="card" style="text-align:center;padding:40px"><span class="loading-spinner"></span> Chargement du profil...</div>';
       try {
-        const params = `name=${encodeURIComponent(name)}&realm=${encodeURIComponent(realm)}&version=${encodeURIComponent(version)}`;
-        const [charRes, mountRes] = await Promise.all([
-          fetch(`/api/character?${params}`),
-          fetch(`/api/mounts?${params}`),
-        ]);
-        const data = await charRes.json();
-        const mountData = await mountRes.json();
-
+        const params = `name=${encodeURIComponent(c.name)}&realm=${encodeURIComponent(c.realmSlug || c.realm)}&version=${encodeURIComponent(c.version)}`;
+        const res = await fetch(`/api/character/full?${params}`);
+        const data = await res.json();
         if (data.error) {
-          resultEl.innerHTML = `<div class="card" style="color:var(--accent-red)">${data.error}</div>`;
+          area.innerHTML = `<div class="card" style="color:var(--accent-red);padding:20px">${data.error}</div>`;
           return;
         }
-
-        data.mounts = mountData.error ? null : mountData;
-        renderCharacter(data, resultEl);
+        currentCharData = data;
+        // Update saved char info
+        const ch = data.character;
+        chars[index] = { ...chars[index], avatar: ch.avatar, level: ch.level, className: ch.className, itemLevel: ch.itemLevel };
+        saveChars(chars);
+        renderSavedCharsBar();
+        renderFullProfile(data, area);
       } catch (e) {
-        resultEl.innerHTML = `<div class="card" style="color:var(--accent-red)">Erreur: ${e.message}</div>`;
+        area.innerHTML = `<div class="card" style="color:var(--accent-red);padding:20px">Erreur: ${e.message}</div>`;
       }
     }
 
-    function renderCharacter(data, el) {
+    // Search modal
+    function openCharSearch() {
+      document.getElementById('charSearchOverlay').classList.add('open');
+      document.getElementById('charSearchName').focus();
+      document.getElementById('charSearchError').style.display = 'none';
+    }
+
+    function closeCharSearch() {
+      document.getElementById('charSearchOverlay').classList.remove('open');
+    }
+
+    async function doCharSearch() {
+      const name = document.getElementById('charSearchName').value.trim();
+      const realm = document.getElementById('charSearchRealm').value;
+      const version = document.getElementById('charSearchVersion').value;
+      const errEl = document.getElementById('charSearchError');
+      const btn = document.getElementById('charSearchBtn');
+
+      if (!name) {
+        errEl.textContent = 'Entre un nom de personnage';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Recherche...';
+
+      try {
+        const params = `name=${encodeURIComponent(name)}&realm=${encodeURIComponent(realm)}&version=${encodeURIComponent(version)}`;
+        const res = await fetch(`/api/character/full?${params}`);
+        const data = await res.json();
+
+        if (data.error) {
+          errEl.textContent = data.error;
+          errEl.style.display = 'block';
+          return;
+        }
+
+        currentCharData = data;
+        const ch = data.character;
+        addSavedChar({
+          name: ch.name, realm: ch.realm, realmSlug: ch.realmSlug,
+          version: ch.version, avatar: ch.avatar, level: ch.level,
+          className: ch.className, itemLevel: ch.itemLevel,
+        });
+        closeCharSearch();
+        renderFullProfile(data, document.getElementById('charProfileArea'));
+      } catch (e) {
+        errEl.textContent = 'Erreur: ' + e.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Rechercher';
+      }
+    }
+
+    document.getElementById('charSearchName').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doCharSearch();
+    });
+
+    // ── Full Profile Renderer ──────────────────────────────────────────────
+
+    function renderFullProfile(data, el) {
       const c = data.character;
+      const classSlug = getClassSlug(c.className);
+      const isSaved = getSavedChars().some(s => s.name.toLowerCase() === c.name.toLowerCase() && s.version === c.version);
+
+      // Count available tabs
+      const tabs = [
+        { id: 'overview', label: 'Apercu', always: true },
+        { id: 'equipment', label: `Equipement (${data.equipment?.length || 0})`, show: data.equipment?.length > 0 },
+        { id: 'raids', label: 'Raids', show: data.raids?.length > 0 },
+        { id: 'dungeons', label: 'Donjons', show: data.dungeons?.some(e => e.instances?.length > 0) },
+        { id: 'pvp', label: 'PvP', show: data.pvp?.length > 0 },
+        { id: 'mounts', label: `Montures${data.mounts ? ` (${data.mounts.ownedCount})` : ''}`, show: !!data.mounts },
+        { id: 'professions', label: 'Metiers', show: data.professions?.primaries?.length > 0 || data.professions?.secondaries?.length > 0 },
+        { id: 'reputations', label: `Reputations (${data.reputations?.length || 0})`, show: data.reputations?.length > 0 },
+        { id: 'achievements', label: `Succes`, show: data.achievements?.categories?.length > 0 },
+        { id: 'titles', label: `Titres (${data.titles?.length || 0})`, show: data.titles?.length > 0 },
+      ].filter(t => t.always || t.show);
+
       let html = '';
 
-      // Character header
+      // Hero banner
+      const bannerBg = c.mainRaw || c.inset || '';
       html += `
-        <div class="card">
-          <div class="character-header">
-            ${c.avatar ? `<img class="character-avatar" src="${c.avatar}" alt="${c.name}" />` : '<div class="character-avatar" style="display:flex;align-items:center;justify-content:center;font-size:24px">&#128100;</div>'}
-            <div class="character-info">
-              <h2>${c.name}</h2>
-              <div class="character-meta">
-                <span>${c.realm}</span>
-                <span>${c.race} ${c.className}</span>
-                ${c.class !== c.className ? `<span>${c.class}</span>` : ''}
-                <span>Niveau ${c.level}</span>
-                ${c.itemLevel ? `<span>iLvl ${c.itemLevel}</span>` : ''}
+        <div class="char-hero">
+          ${bannerBg ? `<div class="char-hero-banner" style="background-image:url('${bannerBg}')"></div>` : '<div class="char-hero-banner" style="background:linear-gradient(135deg, #1a1f2e, #2d1a3e)"></div>'}
+          <div class="char-hero-content">
+            ${c.avatar ? `<img class="char-hero-avatar" src="${c.avatar}" alt="${c.name}" />` : '<div class="char-hero-avatar" style="display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text-muted)">&#128100;</div>'}
+            <div class="char-hero-info">
+              <div class="char-hero-name class-${classSlug}">${c.name}</div>
+              ${c.activeTitle ? `<div class="char-hero-title">${c.activeTitle.replace('{name}', c.name)}</div>` : ''}
+              <div class="char-hero-meta">
+                <span>${c.realm} <span style="color:var(--text-muted)">(${c.version === 'retail' ? 'Retail' : c.version === 'classic_era' ? 'Era' : 'Classic'})</span></span>
+                <span class="class-${classSlug}">${c.race} ${c.className}${c.class !== c.className ? ` - ${c.class}` : ''}</span>
+                <span>Niveau <b>${c.level}</b></span>
+                ${c.itemLevel ? `<span>iLvl <b>${c.itemLevel}</b></span>` : ''}
+                ${c.achievementPoints ? `<span style="color:var(--accent-orange)">&#9733; ${c.achievementPoints}</span>` : ''}
+                <span>${c.faction}</span>
               </div>
+            </div>
+            <div class="char-hero-actions">
+              ${!isSaved ? `<button class="btn-save" onclick="saveCurrentChar()">Sauvegarder</button>` : `<button class="btn-save saved">Sauvegarde</button>`}
+              <button class="btn-sm" onclick="refreshCurrentChar()">&#8635; Rafraichir</button>
             </div>
           </div>
         </div>`;
 
-      // Raids
-      if (data.raids && data.raids.length > 0) {
-        for (const raid of data.raids) {
-          let modesHtml = '';
-          let diffTabsHtml = '<div class="diff-tabs">';
-          let diffContents = '';
+      // Tabs
+      html += '<div class="char-tabs">';
+      tabs.forEach((t, i) => {
+        html += `<button class="char-tab ${i === 0 ? 'active' : ''}" onclick="switchCharTab(this, 'ctab-${t.id}')">${t.label}</button>`;
+      });
+      html += '</div>';
 
-          raid.modes.forEach((mode, i) => {
-            const id = `raid-${raid.name.replace(/\s/g, '-')}-${i}`;
-            diffTabsHtml += `<div class="diff-tab ${i === 0 ? 'active' : ''}" onclick="switchDiff(this, '${id}')">${mode.difficulty} (${mode.killed}/${mode.total})</div>`;
-            diffContents += `<div class="diff-content ${i === 0 ? '' : 'hidden'}" id="${id}"><div class="boss-grid">`;
-            for (const enc of mode.encounters) {
-              diffContents += `
-                <div class="boss-item">
-                  <span class="boss-dot ${enc.killed ? 'killed' : 'alive'}"></span>
-                  <span class="boss-name">${enc.name}</span>
-                  ${enc.kills > 0 ? `<span class="boss-kills">${enc.kills}x</span>` : ''}
-                </div>`;
-            }
-            diffContents += '</div></div>';
-          });
+      // ── Tab: Overview ───────────────────────────────────
+      html += '<div class="char-tab-content active" id="ctab-overview">';
+      html += '<div class="char-stats-grid">';
+      html += `<div class="char-stat-card"><div class="char-stat-value">${c.level}</div><div class="char-stat-label">Niveau</div></div>`;
+      if (c.itemLevel) html += `<div class="char-stat-card"><div class="char-stat-value">${c.itemLevel}</div><div class="char-stat-label">Item Level</div></div>`;
+      if (c.averageItemLevel && c.averageItemLevel !== c.itemLevel) html += `<div class="char-stat-card"><div class="char-stat-value">${c.averageItemLevel}</div><div class="char-stat-label">iLvl Moyen</div></div>`;
+      if (c.achievementPoints) html += `<div class="char-stat-card"><div class="char-stat-value" style="color:var(--accent-orange)">${c.achievementPoints}</div><div class="char-stat-label">Points de Succes</div></div>`;
+      if (data.mounts) html += `<div class="char-stat-card"><div class="char-stat-value" style="color:var(--accent-cyan)">${data.mounts.ownedCount}</div><div class="char-stat-label">Montures</div></div>`;
+      if (data.titles?.length) html += `<div class="char-stat-card"><div class="char-stat-value" style="color:var(--accent-purple)">${data.titles.length}</div><div class="char-stat-label">Titres</div></div>`;
+      const totalRaidKills = data.raids?.reduce((sum, exp) => sum + exp.instances.reduce((s2, inst) => s2 + inst.modes.reduce((s3, m) => s3 + m.killed, 0), 0), 0) || 0;
+      if (totalRaidKills) html += `<div class="char-stat-card"><div class="char-stat-value" style="color:var(--accent-green)">${totalRaidKills}</div><div class="char-stat-label">Boss de raid tues</div></div>`;
+      if (c.lastLogin) {
+        const d = new Date(c.lastLogin);
+        html += `<div class="char-stat-card"><div class="char-stat-value" style="font-size:14px">${d.toLocaleDateString('fr-FR')}</div><div class="char-stat-label">Derniere connexion</div></div>`;
+      }
+      html += '</div>';
 
-          diffTabsHtml += '</div>';
+      // Professions summary in overview
+      if (data.professions?.primaries?.length > 0) {
+        html += '<div class="card" style="margin-top:12px"><div class="card-header"><span class="card-title">Metiers principaux</span></div><div class="prof-grid">';
+        for (const prof of data.professions.primaries) {
+          const lastTier = prof.tiers?.[prof.tiers.length - 1];
+          html += `<div class="prof-card"><div class="prof-name">${prof.name}</div>`;
+          if (lastTier) {
+            const pct = lastTier.maxSkillPoints > 0 ? (lastTier.skillPoints / lastTier.maxSkillPoints * 100) : 0;
+            html += `<div class="prof-tier-name">${lastTier.name}</div>
+              <div class="prof-bar"><div class="prof-bar-fill" style="width:${pct}%"></div></div>
+              <div class="prof-bar-text">${lastTier.skillPoints} / ${lastTier.maxSkillPoints}</div>`;
+          }
+          html += '</div>';
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
 
+      // ── Tab: Equipment ──────────────────────────────────
+      if (tabs.some(t => t.id === 'equipment')) {
+        html += '<div class="char-tab-content" id="ctab-equipment">';
+        const slotOrder = ['HEAD','NECK','SHOULDER','BACK','CHEST','SHIRT','TABARD','WRIST','HANDS','WAIST','LEGS','FEET','FINGER_1','FINGER_2','TRINKET_1','TRINKET_2','MAIN_HAND','OFF_HAND','RANGED'];
+        const sorted = [...data.equipment].sort((a, b) => {
+          const ia = slotOrder.indexOf(a.slot); const ib = slotOrder.indexOf(b.slot);
+          return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+        });
+        // Average iLvl
+        const combatSlots = sorted.filter(i => !['SHIRT','TABARD'].includes(i.slot));
+        const avgIlvl = combatSlots.length > 0 ? Math.round(combatSlots.reduce((s, i) => s + i.level, 0) / combatSlots.length) : 0;
+        if (avgIlvl) html += `<div class="card" style="margin-bottom:12px;padding:12px 16px;text-align:center"><span style="color:var(--text-muted)">Item Level Moyen:</span> <b style="font-size:18px;color:var(--accent-blue)">${avgIlvl}</b></div>`;
+        html += '<div class="equip-grid">';
+        for (const item of sorted) {
+          const enchStr = item.enchantments?.length ? `<div class="equip-details" style="color:var(--accent-green)">${item.enchantments[0]}</div>` : '';
           html += `
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title">${raid.name}</span>
+            <div class="equip-item quality-${item.quality}">
+              <div class="equip-slot">${item.slotName}</div>
+              <div style="flex:1;min-width:0">
+                <div class="equip-name quality-${item.quality}" style="border:none">${item.name}</div>
+                <div class="equip-details">${item.itemSubclass || ''} ${item.setName ? `<span style="color:var(--accent-green)">(${item.setName})</span>` : ''}</div>
+                ${enchStr}
               </div>
-              ${diffTabsHtml}
-              ${diffContents}
+              <div class="equip-ilvl">${item.level}</div>
             </div>`;
         }
+        html += '</div></div>';
       }
 
-      // PvP
-      if (data.pvp && data.pvp.length > 0) {
+      // ── Tab: Raids ──────────────────────────────────────
+      if (tabs.some(t => t.id === 'raids')) {
+        html += '<div class="char-tab-content" id="ctab-raids">';
+        for (const exp of data.raids) {
+          html += `<div class="card" style="margin-bottom:12px"><div class="card-header"><span class="card-title" style="color:var(--accent-purple)">${exp.name}</span></div>`;
+          for (const inst of exp.instances) {
+            let diffTabsHtml = '<div class="diff-tabs">';
+            let diffContents = '';
+            const uid = `raid-${exp.name}-${inst.name}`.replace(/[^a-zA-Z0-9]/g, '-');
+            inst.modes.forEach((mode, i) => {
+              const id = `${uid}-${i}`;
+              diffTabsHtml += `<div class="diff-tab ${i === 0 ? 'active' : ''}" onclick="switchDiff(this, '${id}')">${mode.difficulty} (${mode.killed}/${mode.total})</div>`;
+              diffContents += `<div class="diff-content ${i === 0 ? '' : 'hidden'}" id="${id}"><div class="boss-grid">`;
+              for (const enc of mode.encounters) {
+                diffContents += `<div class="boss-item"><span class="boss-dot ${enc.killed ? 'killed' : 'alive'}"></span><span class="boss-name">${enc.name}</span>${enc.kills > 0 ? `<span class="boss-kills">${enc.kills}x</span>` : ''}</div>`;
+              }
+              diffContents += '</div></div>';
+            });
+            diffTabsHtml += '</div>';
+            html += `<div style="margin-bottom:16px"><h4 style="font-size:14px;margin-bottom:8px;color:var(--text-primary)">${inst.name}</h4>${diffTabsHtml}${diffContents}</div>`;
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+
+      // ── Tab: Dungeons ───────────────────────────────────
+      if (tabs.some(t => t.id === 'dungeons')) {
+        html += '<div class="char-tab-content" id="ctab-dungeons">';
+        for (const exp of data.dungeons) {
+          if (!exp.instances?.length) continue;
+          html += `<div class="card" style="margin-bottom:12px"><div class="card-header"><span class="card-title" style="color:var(--accent-cyan)">${exp.name}</span></div><div class="dungeon-grid">`;
+          for (const inst of exp.instances) {
+            html += `<div class="dungeon-card"><div class="dungeon-name">${inst.name}</div>`;
+            for (const mode of inst.modes) {
+              html += `<div class="dungeon-mode">${mode.difficulty}: <b style="color:var(--accent-green)">${mode.killed}</b>/${mode.total} boss</div>`;
+            }
+            html += '</div>';
+          }
+          html += '</div></div>';
+        }
+        html += '</div>';
+      }
+
+      // ── Tab: PvP ────────────────────────────────────────
+      if (tabs.some(t => t.id === 'pvp')) {
+        html += '<div class="char-tab-content" id="ctab-pvp">';
         let pvpRows = '';
         for (const b of data.pvp) {
           const winRate = b.played > 0 ? Math.round((b.won / b.played) * 100) : 0;
-          pvpRows += `
-            <tr>
-              <td>${b.type}</td>
-              <td class="text-blue" style="font-weight:600">${b.rating}</td>
-              <td class="text-green">${b.won}</td>
-              <td class="text-red">${b.lost}</td>
-              <td>${b.played}</td>
-              <td>${winRate}%</td>
-            </tr>`;
+          pvpRows += `<tr><td>${b.type}</td><td class="text-blue" style="font-weight:600">${b.rating}</td><td class="text-green">${b.won}</td><td class="text-red">${b.lost}</td><td>${b.played}</td><td>${winRate}%</td></tr>`;
         }
-
-        html += `
-          <div class="card">
-            <div class="card-header"><span class="card-title">PvP</span></div>
-            <table class="data-table">
-              <thead><tr><th>Bracket</th><th>Rating</th><th>Victoires</th><th>Defaites</th><th>Joues</th><th>Winrate</th></tr></thead>
-              <tbody>${pvpRows}</tbody>
-            </table>
-          </div>`;
+        html += `<div class="card"><div class="card-header"><span class="card-title">PvP Saison</span></div>
+          <table class="data-table"><thead><tr><th>Bracket</th><th>Rating</th><th>Victoires</th><th>Defaites</th><th>Joues</th><th>Winrate</th></tr></thead><tbody>${pvpRows}</tbody></table></div>`;
+        html += '</div>';
       }
 
-      // Mounts
-      if (data.mounts) {
+      // ── Tab: Mounts ─────────────────────────────────────
+      if (tabs.some(t => t.id === 'mounts') && data.mounts) {
         const m = data.mounts;
         const pct = m.percentage || 0;
-
-        let ownedItems = '';
-        for (const mt of (m.owned || [])) {
-          ownedItems += `<div class="mount-item owned">${mt.name}</div>`;
-        }
-
-        let missingItems = '';
-        for (const mt of (m.missing || [])) {
-          missingItems += `<div class="mount-item missing">${mt.name}</div>`;
-        }
-
+        html += '<div class="char-tab-content" id="ctab-mounts">';
+        let ownedItems = '', missingItems = '';
+        for (const mt of (m.owned || [])) ownedItems += `<div class="mount-item owned">${mt.name}</div>`;
+        for (const mt of (m.missing || [])) missingItems += `<div class="mount-item missing">${mt.name}</div>`;
         html += `
           <div class="card">
-            <div class="card-header">
-              <span class="card-title">Montures</span>
-              <span class="text-muted" style="font-size:13px">${m.ownedCount} / ${m.totalCount}</span>
-            </div>
-            <div class="mount-progress">
-              <div class="mount-progress-bar">
-                <div class="mount-progress-fill" style="width:${pct}%"></div>
-                <div class="mount-progress-text">${pct}% - ${m.ownedCount} obtenues sur ${m.totalCount}</div>
-              </div>
-            </div>
+            <div class="card-header"><span class="card-title">Montures</span><span class="text-muted" style="font-size:13px">${m.ownedCount} / ${m.totalCount}</span></div>
+            <div class="mount-progress"><div class="mount-progress-bar"><div class="mount-progress-fill" style="width:${pct}%"></div><div class="mount-progress-text">${pct}% - ${m.ownedCount} obtenues sur ${m.totalCount}</div></div></div>
             <div class="diff-tabs">
-              <div class="diff-tab active" onclick="switchDiff(this, 'mounts-owned')">Obtenues (${m.ownedCount})</div>
-              <div class="diff-tab" onclick="switchDiff(this, 'mounts-missing')">Manquantes (${m.missing?.length || 0})</div>
+              <div class="diff-tab active" onclick="switchDiff(this, 'cmounts-owned')">Obtenues (${m.ownedCount})</div>
+              <div class="diff-tab" onclick="switchDiff(this, 'cmounts-missing')">Manquantes (${m.missing?.length || 0})</div>
             </div>
             <input type="text" class="mount-search" placeholder="Rechercher une monture..." oninput="filterMounts(this)" />
-            <div class="diff-content" id="mounts-owned">
-              <div class="mount-count">${m.ownedCount} montures obtenues</div>
-              <div class="mount-grid" data-mount-list="owned">
-                ${ownedItems || '<div class="text-muted">Aucune monture</div>'}
-              </div>
-            </div>
-            <div class="diff-content hidden" id="mounts-missing">
-              <div class="mount-count">${m.missing?.length || 0} montures manquantes</div>
-              <div class="mount-grid" data-mount-list="missing">
-                ${missingItems || '<div class="text-muted">Toutes les montures obtenues !</div>'}
-              </div>
-            </div>
+            <div class="diff-content" id="cmounts-owned"><div class="mount-count">${m.ownedCount} montures obtenues</div><div class="mount-grid" data-mount-list="owned">${ownedItems || '<div class="text-muted">Aucune monture</div>'}</div></div>
+            <div class="diff-content hidden" id="cmounts-missing"><div class="mount-count">${m.missing?.length || 0} montures manquantes</div><div class="mount-grid" data-mount-list="missing">${missingItems || '<div class="text-muted">Toutes les montures obtenues !</div>'}</div></div>
           </div>`;
+        html += '</div>';
+      }
+
+      // ── Tab: Professions ────────────────────────────────
+      if (tabs.some(t => t.id === 'professions')) {
+        html += '<div class="char-tab-content" id="ctab-professions">';
+        if (data.professions.primaries.length > 0) {
+          html += '<div class="card" style="margin-bottom:12px"><div class="card-header"><span class="card-title">Metiers Principaux</span></div><div class="prof-grid">';
+          for (const prof of data.professions.primaries) {
+            html += `<div class="prof-card"><div class="prof-name">${prof.name}</div>`;
+            for (const tier of prof.tiers) {
+              const pct = tier.maxSkillPoints > 0 ? (tier.skillPoints / tier.maxSkillPoints * 100) : 0;
+              html += `<div class="prof-tier"><div class="prof-tier-name">${tier.name}</div><div class="prof-bar"><div class="prof-bar-fill" style="width:${pct}%"></div></div><div class="prof-bar-text">${tier.skillPoints} / ${tier.maxSkillPoints}</div></div>`;
+            }
+            html += '</div>';
+          }
+          html += '</div></div>';
+        }
+        if (data.professions.secondaries.length > 0) {
+          html += '<div class="card"><div class="card-header"><span class="card-title">Metiers Secondaires</span></div><div class="prof-grid">';
+          for (const prof of data.professions.secondaries) {
+            html += `<div class="prof-card"><div class="prof-name">${prof.name}</div>`;
+            for (const tier of prof.tiers) {
+              const pct = tier.maxSkillPoints > 0 ? (tier.skillPoints / tier.maxSkillPoints * 100) : 0;
+              html += `<div class="prof-tier"><div class="prof-tier-name">${tier.name}</div><div class="prof-bar"><div class="prof-bar-fill" style="width:${pct}%"></div></div><div class="prof-bar-text">${tier.skillPoints} / ${tier.maxSkillPoints}</div></div>`;
+            }
+            html += '</div>';
+          }
+          html += '</div></div>';
+        }
+        html += '</div>';
+      }
+
+      // ── Tab: Reputations ────────────────────────────────
+      if (tabs.some(t => t.id === 'reputations')) {
+        html += '<div class="char-tab-content" id="ctab-reputations">';
+        // Group by standing
+        const standingOrder = ['Exalte', 'Exalted', 'Revere', 'Revered', 'Honore', 'Honored', 'Amical', 'Friendly', 'Neutre', 'Neutral', 'Inamical', 'Unfriendly', 'Hostile', 'Hai', 'Hated'];
+        const standingSlugMap = {
+          'Exalte': 'exalted', 'Exalted': 'exalted',
+          'Revere': 'revered', 'Revered': 'revered', 'Révéré': 'revered',
+          'Honore': 'honored', 'Honored': 'honored', 'Honoré': 'honored',
+          'Amical': 'friendly', 'Friendly': 'friendly',
+          'Neutre': 'neutral', 'Neutral': 'neutral',
+          'Inamical': 'unfriendly', 'Unfriendly': 'unfriendly',
+          'Hostile': 'hostile',
+          'Hai': 'hated', 'Hated': 'hated', 'Haï': 'hated',
+          'Exalté': 'exalted',
+        };
+
+        html += `<div class="card"><div class="card-header"><span class="card-title">Reputations</span><span class="text-muted" style="font-size:13px">${data.reputations.length} factions</span></div>`;
+        html += '<input type="text" class="mount-search" placeholder="Rechercher une faction..." oninput="filterReps(this)" />';
+        html += '<div class="rep-list">';
+        for (const rep of data.reputations) {
+          const slug = standingSlugMap[rep.standing] || 'neutral';
+          const pct = rep.max > 0 ? (rep.value / rep.max * 100) : (slug === 'exalted' ? 100 : 0);
+          html += `
+            <div class="rep-item standing-${slug}" data-rep-name="${rep.faction.toLowerCase()}">
+              <div class="rep-name">${rep.faction}</div>
+              <div class="rep-standing">${rep.standing}</div>
+              <div class="rep-bar-wrap">
+                <div class="rep-bar"><div class="rep-bar-fill" style="width:${pct}%"></div></div>
+                ${rep.max > 0 ? `<div class="rep-bar-text">${rep.value} / ${rep.max}</div>` : ''}
+              </div>
+            </div>`;
+        }
+        html += '</div></div></div>';
+      }
+
+      // ── Tab: Achievements ───────────────────────────────
+      if (tabs.some(t => t.id === 'achievements')) {
+        html += '<div class="char-tab-content" id="ctab-achievements">';
+        html += `<div class="card" style="margin-bottom:12px;padding:16px;text-align:center"><span style="font-size:28px;font-weight:700;color:var(--accent-orange)">&#9733; ${data.achievements.points}</span><div style="font-size:13px;color:var(--text-muted);margin-top:4px">Points de Succes total</div></div>`;
+        if (data.achievements.categories.length > 0) {
+          html += '<div class="achiev-grid">';
+          for (const cat of data.achievements.categories) {
+            html += `<div class="achiev-cat"><div class="achiev-cat-name">${cat.name}</div><div class="achiev-cat-points">${cat.points}</div>${cat.total ? `<div class="achiev-cat-total">sur ${cat.total}</div>` : ''}</div>`;
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+
+      // ── Tab: Titles ─────────────────────────────────────
+      if (tabs.some(t => t.id === 'titles')) {
+        html += '<div class="char-tab-content" id="ctab-titles">';
+        html += `<div class="card"><div class="card-header"><span class="card-title">Titres</span><span class="text-muted" style="font-size:13px">${data.titles.length} titres obtenus</span></div>`;
+        html += '<div class="title-grid">';
+        for (const t of data.titles) {
+          const display = t.displayString ? t.displayString.replace('{name}', c.name) : t.name;
+          const isActive = c.activeTitle && c.activeTitle === t.displayString;
+          html += `<div class="title-tag ${isActive ? 'active-title' : ''}">${display}</div>`;
+        }
+        html += '</div></div></div>';
       }
 
       el.innerHTML = html;
     }
 
-    function switchDiff(tab, id) {
-      const card = tab.closest('.card');
-      card.querySelectorAll('.diff-tab').forEach(t => t.classList.remove('active'));
-      card.querySelectorAll('.diff-content').forEach(c => c.classList.add('hidden'));
+    function switchCharTab(tab, id) {
+      const area = document.getElementById('charProfileArea');
+      area.querySelectorAll('.char-tab').forEach(t => t.classList.remove('active'));
+      area.querySelectorAll('.char-tab-content').forEach(c => c.classList.remove('active'));
       tab.classList.add('active');
+      const target = document.getElementById(id);
+      if (target) target.classList.add('active');
+    }
+
+    function saveCurrentChar() {
+      if (!currentCharData) return;
+      const c = currentCharData.character;
+      addSavedChar({
+        name: c.name, realm: c.realm, realmSlug: c.realmSlug,
+        version: c.version, avatar: c.avatar, level: c.level,
+        className: c.className, itemLevel: c.itemLevel,
+      });
+      renderFullProfile(currentCharData, document.getElementById('charProfileArea'));
+    }
+
+    function refreshCurrentChar() {
+      if (!currentCharData) return;
+      const c = currentCharData.character;
+      const chars = getSavedChars();
+      const idx = chars.findIndex(s => s.name.toLowerCase() === c.name.toLowerCase() && s.version === c.version);
+      if (idx >= 0) loadSavedChar(idx);
+      else {
+        // Not saved, re-search
+        doCharSearch();
+      }
+    }
+
+    function filterReps(input) {
+      const query = input.value.toLowerCase();
+      input.closest('.card').querySelectorAll('.rep-item').forEach(item => {
+        const name = item.getAttribute('data-rep-name') || '';
+        item.style.display = name.includes(query) ? '' : 'none';
+      });
+    }
+
+    function switchDiff(tab, id) {
+      const card = tab.closest('.card') || tab.closest('div');
+      const parent = tab.parentElement;
+      parent.querySelectorAll('.diff-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      // Find sibling diff-contents
+      const container = parent.parentElement;
+      container.querySelectorAll('.diff-content').forEach(c => c.classList.add('hidden'));
       const target = document.getElementById(id);
       if (target) target.classList.remove('hidden');
     }
@@ -1985,14 +2838,17 @@
       return '#' + toHex(r) + toHex(g) + toHex(b);
     }
 
-    // Allow enter key on character search
-    document.getElementById('charName').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') searchCharacter();
-    });
-
     // ── Init ────────────────────────────────────────────────────────────────
+    renderSavedCharsBar();
     connectWS();
     loadInitial();
+
+    // Auto-load first saved character on page load
+    const initChars = getSavedChars();
+    if (initChars.length > 0) {
+      // Defer to avoid blocking initial render
+      setTimeout(() => loadSavedChar(0), 500);
+    }
   </script>
 
   <style>.hidden { display: none !important; }</style>
