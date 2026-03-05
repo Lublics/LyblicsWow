@@ -334,12 +334,18 @@ async function resolveMountIcon(mountId, version) {
   if (iconInFlight.has(key)) return iconInFlight.get(key);
 
   const promise = (async () => {
-    for (const ns of getNamespaceFallbacks(version)) {
+    // Mount data is almost always only in static-eu (retail), try it first
+    const namespacesToTry = ['static-eu'];
+    if (version === 'classic') namespacesToTry.push('static-classic-eu');
+    if (version === 'classic_era') namespacesToTry.push('static-classic1x-eu');
+
+    for (const ns of namespacesToTry) {
       try {
         const mount = await blizzardRequest(`/data/wow/mount/${mountId}`, ns);
         if (mount.status === 200 && mount.data.creature_displays?.length > 0) {
           const displayId = mount.data.creature_displays[0].id;
-          const media = await blizzardRequest(`/data/wow/media/creature-display/${displayId}`, ns);
+          // creature-display media also needs static-eu typically
+          const media = await blizzardRequest(`/data/wow/media/creature-display/${displayId}`, 'static-eu');
           if (media.status === 200 && media.data.assets) {
             const asset = media.data.assets.find(a => a.key === 'zoom') || media.data.assets.find(a => a.key === 'icon') || media.data.assets[0];
             if (asset) { iconCache.set(key, asset.value); iconInFlight.delete(key); return asset.value; }
@@ -649,25 +655,25 @@ app.get('/api/character/full', async (req, res) => {
 
     // Pre-fetch item icons (only ~16 items, fast)
     if (result.equipment.length > 0) {
-      await batchResolve(result.equipment, 8, async (item) => {
+      console.log(`  [Icons] Fetching ${result.equipment.length} item icons...`);
+      await batchResolve(result.equipment, 10, async (item) => {
         if (item.itemId) {
           item.icon = await resolveItemIcon(item.itemId, version) || '';
         }
       });
+      console.log(`  [Icons] Item icons done`);
     }
 
     // Pre-fetch mount icons for owned mounts (batch with concurrency limit)
     if (result.mounts && result.mounts.owned.length > 0) {
-      await batchResolve(result.mounts.owned, 6, async (mount) => {
+      console.log(`  [Icons] Fetching ${result.mounts.owned.length} owned mount icons...`);
+      await batchResolve(result.mounts.owned, 10, async (mount) => {
         mount.icon = await resolveMountIcon(mount.id, version) || '';
       });
+      console.log(`  [Icons] Owned mount icons done`);
     }
-    // Also missing mounts (lower priority, still do it)
-    if (result.mounts && result.mounts.missing.length > 0) {
-      await batchResolve(result.mounts.missing, 6, async (mount) => {
-        mount.icon = await resolveMountIcon(mount.id, version) || '';
-      });
-    }
+    // Missing mounts: DON'T pre-fetch (too many, would be slow)
+    // They use the /api/icon/mount/:id lazy endpoint instead
 
     res.json(result);
   } catch (e) { res.json({ error: e.message }); }

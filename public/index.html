@@ -1119,6 +1119,124 @@
 
     .mount-icon-fail { display: none; }
 
+    /* ── Character Profile Split Layout ────────────────── */
+    .char-profile-layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .char-profile-left {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .char-profile-right {
+      width: 320px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 20px;
+    }
+
+    .char-render-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .char-render-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 80%, rgba(88, 166, 255, 0.08) 0%, transparent 70%),
+                  radial-gradient(ellipse at 50% 20%, rgba(188, 140, 255, 0.06) 0%, transparent 60%);
+    }
+
+    .char-render-img {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 450px;
+      object-fit: contain;
+      object-position: center top;
+      position: relative;
+      z-index: 1;
+      filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
+    }
+
+    .char-render-info {
+      position: relative;
+      z-index: 2;
+      padding: 16px 20px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.6));
+      margin-top: -60px;
+    }
+
+    .char-render-name {
+      font-size: 18px;
+      font-weight: 700;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+
+    .char-render-detail {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+
+    .char-render-ilvl {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      z-index: 3;
+      text-align: center;
+    }
+
+    .char-render-ilvl-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      line-height: 1;
+    }
+
+    .char-render-ilvl-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .char-render-faction {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-size: 28px;
+      z-index: 3;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    }
+
+    .char-no-render {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      color: var(--text-muted);
+      font-size: 64px;
+      opacity: 0.2;
+    }
+
+    @media (max-width: 1100px) {
+      .char-profile-layout { flex-direction: column-reverse; }
+      .char-profile-right { width: 100%; position: static; }
+      .char-render-img { min-height: 300px; max-height: 400px; }
+    }
+
     /* ── Search Bar ────────────────────────────────────────────────────────── */
     .search-form {
       display: flex;
@@ -2627,6 +2745,13 @@
           </div>
         </div>`;
 
+      // ── Split Layout: open ──────────────────────────────
+      const factionIcon = (c.faction || '').toLowerCase().includes('horde') ? '&#9876;' : (c.faction || '').toLowerCase().includes('alliance') ? '&#9877;' : '';
+      const renderImg = c.mainRaw || c.inset || '';
+
+      html += '<div class="char-profile-layout">';
+      html += '<div class="char-profile-left">';
+
       // Tabs
       html += '<div class="char-tabs">';
       tabs.forEach((t, i) => {
@@ -2762,14 +2887,16 @@
         const m = data.mounts;
         const pct = m.percentage || 0;
         html += '<div class="char-tab-content" id="ctab-mounts">';
+        const mountVersion = c.version || 'classic';
         let ownedItems = '', missingItems = '';
         for (const mt of (m.owned || [])) {
-          const mIcon = mt.icon ? `<img class="mount-icon" src="${mt.icon}" alt="" loading="lazy" onerror="this.style.display='none'" />` : '';
-          ownedItems += `<div class="mount-item owned">${mIcon}<span>${mt.name}</span></div>`;
+          const src = mt.icon || `/api/icon/mount/${mt.id}?version=${mountVersion}`;
+          ownedItems += `<div class="mount-item owned"><img class="mount-icon" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" /><span>${mt.name}</span></div>`;
         }
         for (const mt of (m.missing || [])) {
-          const mIcon = mt.icon ? `<img class="mount-icon" src="${mt.icon}" alt="" loading="lazy" onerror="this.style.display='none'" />` : '';
-          missingItems += `<div class="mount-item missing">${mIcon}<span>${mt.name}</span></div>`;
+          // Missing mounts use lazy endpoint (not pre-fetched to keep response fast)
+          const src = mt.icon || `/api/icon/mount/${mt.id}?version=${mountVersion}`;
+          missingItems += `<div class="mount-item missing"><img class="mount-icon" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" /><span>${mt.name}</span></div>`;
         }
         html += `
           <div class="card">
@@ -2878,6 +3005,29 @@
         }
         html += '</div></div></div>';
       }
+
+      // ── Close left column, add right column with 3D render ──
+      html += '</div>'; // close .char-profile-left
+
+      html += '<div class="char-profile-right">';
+      html += '<div class="char-render-card">';
+      html += '<div class="char-render-bg"></div>';
+      if (c.itemLevel) {
+        html += `<div class="char-render-ilvl"><div class="char-render-ilvl-value">${c.itemLevel}</div><div class="char-render-ilvl-label">Item Level</div></div>`;
+      }
+      if (renderImg) {
+        html += `<img class="char-render-img" src="${renderImg}" alt="${c.name}" />`;
+      } else {
+        html += '<div class="char-no-render">&#128100;</div>';
+      }
+      html += `<div class="char-render-info">`;
+      html += `<div class="char-render-name class-${classSlug}">${c.name}</div>`;
+      html += `<div class="char-render-detail">${c.race} ${c.className} - Niveau ${c.level}</div>`;
+      html += `<div class="char-render-detail">${c.realm} (${c.version === 'retail' ? 'Retail' : c.version === 'classic_era' ? 'Era' : 'Classic'})</div>`;
+      html += '</div>';
+      html += '</div>'; // close .char-render-card
+      html += '</div>'; // close .char-profile-right
+      html += '</div>'; // close .char-profile-layout
 
       el.innerHTML = html;
     }
