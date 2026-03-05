@@ -1199,7 +1199,11 @@
       position: relative;
     }
 
-    .guide-mount-card:hover { border-color: var(--border-light); }
+    .guide-mount-card:hover {
+      border-color: var(--accent-blue);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(88,166,255,.15);
+    }
 
     .guide-mount-card.owned {
       border-left: 3px solid var(--accent-green);
@@ -1285,6 +1289,316 @@
       border-radius: 3px;
       transition: width 0.3s ease;
     }
+
+    /* ── Mount Detail Modal ───────────────────────────── */
+    .mount-detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 600;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mount-detail-overlay.open { display: flex; }
+
+    .mount-detail-modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 560px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    }
+
+    .mount-detail-header {
+      display: flex;
+      gap: 16px;
+      padding: 24px 24px 16px;
+      align-items: flex-start;
+    }
+
+    .mount-detail-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: var(--radius-lg);
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+    }
+
+    .mount-detail-title { flex: 1; }
+
+    .mount-detail-name {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .mount-detail-badges {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .mount-detail-owned {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .mount-detail-owned.yes { background: rgba(63,185,80,.15); color: var(--accent-green); }
+    .mount-detail-owned.no { background: rgba(248,81,73,.1); color: var(--accent-red); }
+
+    .mount-detail-body { padding: 0 24px 24px; }
+
+    .mount-detail-section {
+      margin-bottom: 16px;
+    }
+
+    .mount-detail-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .mount-detail-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    .mount-detail-guide {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-primary);
+    }
+
+    .mount-detail-guide b { color: var(--accent-blue); }
+    .mount-detail-guide .tip { color: var(--accent-orange); }
+
+    .mount-detail-links {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .mount-detail-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--accent-blue);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all var(--transition);
+    }
+
+    .mount-detail-links a:hover {
+      border-color: var(--accent-blue);
+      background: var(--bg-hover);
+    }
+
+    .mount-detail-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mount-detail-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    /* ── Guide Pagination ─────────────────────────────── */
+    .guide-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .guide-page-btn {
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      transition: all var(--transition);
+    }
+
+    .guide-page-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+    .guide-page-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+    .guide-page-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .guide-page-info { font-size: 12px; color: var(--text-muted); }
+
+    /* ── Guide View Toggle ──────────────────────────────── */
+    .guide-view-toggle {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+    }
+
+    .guide-view-btn {
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all var(--transition);
+    }
+
+    .guide-view-btn:hover { color: var(--text-primary); border-color: var(--border-light); }
+    .guide-view-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+    /* Grid compact mode */
+    .guide-grid.compact {
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 6px;
+    }
+
+    .guide-grid.compact .guide-mount-card {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 8px 6px;
+      gap: 6px;
+    }
+
+    .guide-grid.compact .guide-mount-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+    }
+
+    .guide-grid.compact .guide-mount-info {
+      width: 100%;
+    }
+
+    .guide-grid.compact .guide-mount-name {
+      font-size: 10px;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .guide-grid.compact .guide-mount-name span:first-child {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .guide-grid.compact .guide-mount-desc,
+    .guide-grid.compact .guide-source-badge,
+    .guide-grid.compact .guide-faction-icon { display: none; }
+
+    .guide-grid.compact .owned-check { font-size: 10px; }
+
+    /* ── Source Completion Stats ────────────────────────── */
+    .guide-source-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .guide-source-stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+
+    .guide-source-stat-label {
+      font-weight: 600;
+      min-width: 70px;
+    }
+
+    .guide-source-stat-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-hover);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .guide-source-stat-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .guide-source-stat-pct {
+      font-size: 11px;
+      color: var(--text-muted);
+      min-width: 42px;
+      text-align: right;
+    }
+
+    /* ── Mount Detail Nav ───────────────────────────────── */
+    .mount-detail-nav {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .mount-detail-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all var(--transition);
+    }
+
+    .mount-detail-nav-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+    .mount-detail-nav-btn:disabled { opacity: 0.3; cursor: default; }
 
     /* ── Character Profile Split Layout ────────────────── */
     .char-profile-layout {
@@ -1747,6 +2061,8 @@
 
     .btn-sm:hover { border-color: var(--accent-blue); color: var(--text-primary); }
   </style>
+  <script>const whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: false };</script>
+  <script src="https://wow.zamimg.com/js/tooltips.js"></script>
 </head>
 <body>
   <button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
@@ -1968,6 +2284,14 @@
             <button class="btn btn-secondary" onclick="closeCharSearch()">Annuler</button>
             <button class="btn btn-primary" id="charSearchBtn" onclick="doCharSearch()">Rechercher</button>
           </div>
+        </div>
+      </div>
+
+      <!-- ── Mount Detail Modal ───────────────────────────────────── -->
+      <div class="mount-detail-overlay" id="mountDetailOverlay" onclick="if(event.target===this)closeMountDetail()">
+        <div class="mount-detail-modal">
+          <button class="mount-detail-close" onclick="closeMountDetail()">&times;</button>
+          <div id="mountDetailContent"></div>
         </div>
       </div>
 
@@ -3058,13 +3382,10 @@
         const mountVersion = c.version || 'classic';
         let ownedItems = '', missingItems = '';
         for (const mt of (m.owned || [])) {
-          const src = mt.icon || `/api/icon/mount/${mt.id}?version=${mountVersion}`;
-          ownedItems += `<div class="mount-item owned"><img class="mount-icon" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" /><span>${mt.name}</span></div>`;
+          ownedItems += `<div class="mount-item owned"><img class="mount-icon" src="/api/icon/mount/${mt.id}?version=${mountVersion}" alt="" loading="lazy" onerror="this.style.display='none'" /><span>${mt.name}</span></div>`;
         }
         for (const mt of (m.missing || [])) {
-          // Missing mounts use lazy endpoint (not pre-fetched to keep response fast)
-          const src = mt.icon || `/api/icon/mount/${mt.id}?version=${mountVersion}`;
-          missingItems += `<div class="mount-item missing"><img class="mount-icon" src="${src}" alt="" loading="lazy" onerror="this.style.display='none'" /><span>${mt.name}</span></div>`;
+          missingItems += `<div class="mount-item missing"><img class="mount-icon" src="/api/icon/mount/${mt.id}?version=${mountVersion}" alt="" loading="lazy" onerror="this.style.display='none'" /><span>${mt.name}</span></div>`;
         }
         html += `
           <div class="card">
@@ -3262,6 +3583,10 @@
     let mountGuideFilters = { source: 'ALL', faction: 'ALL', owned: 'ALL', search: '' };
     let mountGuideOwnedIds = new Set();
     let mountGuidePollTimer = null;
+    let mountGuidePage = 1;
+    let guideSearchTimer = null;
+    let guideViewMode = 'list';
+    let guideFilteredList = [];
 
     function loadMountGuide() {
       const container = document.getElementById('mountGuideContainer');
@@ -3313,29 +3638,32 @@
       const container = document.getElementById('mountGuideContainer');
       if (!container || !mountGuideData) return;
 
-      // Count sources
+      // Count sources + owned per source
       const sourceCounts = {};
+      const sourceOwned = {};
       const factionCounts = { ALL: 0, ALLIANCE: 0, HORDE: 0, NEUTRAL: 0 };
       let ownedCount = 0;
-      let totalFiltered = 0;
 
       for (const m of mountGuideData) {
         const src = m.source || 'UNKNOWN';
         sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+        if (!sourceOwned[src]) sourceOwned[src] = 0;
         factionCounts.ALL++;
         if (m.faction === 'ALLIANCE') factionCounts.ALLIANCE++;
         else if (m.faction === 'HORDE') factionCounts.HORDE++;
         else factionCounts.NEUTRAL++;
-        if (mountGuideOwnedIds.has(m.id)) ownedCount++;
+        if (mountGuideOwnedIds.has(m.id)) { ownedCount++; sourceOwned[src]++; }
       }
 
       // Source filter pills
       const sourceOrder = ['DROP', 'VENDOR', 'ACHIEVEMENT', 'PROFESSION', 'QUEST', 'WORLDEVENT', 'PETSTORE', 'PROMOTION', 'TCG', 'DISCOVERY', 'UNKNOWN'];
       const availableSources = sourceOrder.filter(s => sourceCounts[s]);
-      // Add any other sources not in the predefined order
       for (const s of Object.keys(sourceCounts)) {
         if (!availableSources.includes(s)) availableSources.push(s);
       }
+
+      // Source badge colors for stat bars
+      const srcColors = { DROP: '#a335ee', VENDOR: '#58a6ff', ACHIEVEMENT: '#d29922', PROFESSION: '#ff7d0a', QUEST: '#1eff00', PETSTORE: '#00ccff', WORLDEVENT: '#f58cba', PROMOTION: '#e6cc80', TCG: '#ff8000', DISCOVERY: '#39d2c0', UNKNOWN: '#8b949e' };
 
       let html = '';
 
@@ -3346,6 +3674,22 @@
         <span style="color:var(--text-muted)"><b>${mountGuideData.length - ownedCount}</b> manquantes</span>
         <span><b>${Math.round(ownedCount / mountGuideData.length * 100)}%</b> de completion</span>
       </div>`;
+
+      // Source completion breakdown
+      html += '<div class="guide-source-stats">';
+      for (const src of availableSources) {
+        const total = sourceCounts[src] || 0;
+        const owned = sourceOwned[src] || 0;
+        const pct = total > 0 ? Math.round(owned / total * 100) : 0;
+        const label = SOURCE_LABELS[src] || src;
+        const color = srcColors[src] || '#8b949e';
+        html += `<div class="guide-source-stat">
+          <span class="guide-source-stat-label" style="color:${color}">${label}</span>
+          <div class="guide-source-stat-bar"><div class="guide-source-stat-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span class="guide-source-stat-pct">${owned}/${total}</span>
+        </div>`;
+      }
+      html += '</div>';
 
       // Filters
       html += '<div class="card" style="margin-bottom:12px">';
@@ -3375,8 +3719,13 @@
       html += `<div class="guide-pill ${mountGuideFilters.owned === 'MISSING' ? 'active' : ''}" onclick="setGuideFilter('owned','MISSING')">Manquantes (${mountGuideData.length - ownedCount})</div>`;
       html += '</div>';
 
-      // Search
-      html += '<input type="text" class="mount-search" placeholder="Rechercher une monture par nom..." value="' + (mountGuideFilters.search || '') + '" oninput="setGuideSearch(this.value)" />';
+      // Search + view toggle
+      html += '<div style="display:flex;gap:8px;align-items:center">';
+      html += '<input type="text" class="mount-search" style="flex:1" placeholder="Rechercher une monture par nom..." value="' + (mountGuideFilters.search || '') + '" oninput="setGuideSearch(this.value)" />';
+      html += '<div class="guide-view-toggle">';
+      html += `<button class="guide-view-btn ${guideViewMode === 'list' ? 'active' : ''}" onclick="setGuideView('list')" title="Vue liste">&#9776;</button>`;
+      html += `<button class="guide-view-btn ${guideViewMode === 'grid' ? 'active' : ''}" onclick="setGuideView('grid')" title="Vue grille">&#9638;</button>`;
+      html += '</div></div>';
       html += '</div>';
 
       // Filter mounts
@@ -3395,20 +3744,27 @@
         return true;
       });
 
-      html += `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${filtered.length} monture${filtered.length > 1 ? 's' : ''} affichee${filtered.length > 1 ? 's' : ''}</div>`;
+      // Pagination
+      const perPage = 50;
+      const totalPages = Math.ceil(filtered.length / perPage) || 1;
+      if (mountGuidePage > totalPages) mountGuidePage = totalPages;
+      if (mountGuidePage < 1) mountGuidePage = 1;
+      const startIdx = (mountGuidePage - 1) * perPage;
+      const displayMounts = filtered.slice(startIdx, startIdx + perPage);
 
-      // Render mount cards (limit to 200 for performance, with "show more" button)
-      const displayLimit = 200;
-      const displayMounts = filtered.slice(0, displayLimit);
+      // Store filtered list for prev/next navigation in modal
+      guideFilteredList = filtered;
 
-      html += '<div class="guide-grid">';
+      html += `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${filtered.length} monture${filtered.length > 1 ? 's' : ''} — Page ${mountGuidePage}/${totalPages}</div>`;
+
+      html += `<div class="guide-grid ${guideViewMode === 'grid' ? 'compact' : ''}">`;
       for (const m of displayMounts) {
         const isOwned = mountGuideOwnedIds.has(m.id);
         const srcLabel = SOURCE_LABELS[m.source] || m.source || 'Autre';
         const factionStr = m.factionName ? `<span class="guide-faction-icon">${m.faction === 'ALLIANCE' ? '&#9877;' : '&#9876;'} ${m.factionName}</span>` : '';
 
         html += `
-          <div class="guide-mount-card ${isOwned ? 'owned' : 'missing'}">
+          <div class="guide-mount-card ${isOwned ? 'owned' : 'missing'}" onclick="openMountDetail(${m.id})" style="cursor:pointer">
             <img class="guide-mount-icon" src="/api/icon/mount/${m.id}?version=classic" alt="" loading="lazy" onerror="this.style.display='none'" />
             <div class="guide-mount-info">
               <div class="guide-mount-name">
@@ -3423,8 +3779,19 @@
       }
       html += '</div>';
 
-      if (filtered.length > displayLimit) {
-        html += `<div style="text-align:center;margin-top:12px"><button class="btn btn-secondary" onclick="showAllGuideMounts()">Afficher les ${filtered.length - displayLimit} montures restantes</button></div>`;
+      // Pagination controls
+      if (totalPages > 1) {
+        html += '<div class="guide-pagination">';
+        html += `<button class="guide-page-btn" onclick="goGuidePage(1)" ${mountGuidePage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        html += `<button class="guide-page-btn" onclick="goGuidePage(${mountGuidePage - 1})" ${mountGuidePage === 1 ? 'disabled' : ''}>&lsaquo;</button>`;
+        const startP = Math.max(1, mountGuidePage - 3);
+        const endP = Math.min(totalPages, mountGuidePage + 3);
+        for (let p = startP; p <= endP; p++) {
+          html += `<button class="guide-page-btn ${p === mountGuidePage ? 'active' : ''}" onclick="goGuidePage(${p})">${p}</button>`;
+        }
+        html += `<button class="guide-page-btn" onclick="goGuidePage(${mountGuidePage + 1})" ${mountGuidePage === totalPages ? 'disabled' : ''}>&rsaquo;</button>`;
+        html += `<button class="guide-page-btn" onclick="goGuidePage(${totalPages})" ${mountGuidePage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        html += '</div>';
       }
 
       container.innerHTML = html;
@@ -3432,63 +3799,111 @@
 
     function setGuideFilter(type, value) {
       mountGuideFilters[type] = value;
+      mountGuidePage = 1;
       renderMountGuide();
     }
 
     function setGuideSearch(value) {
-      mountGuideFilters.search = value;
+      clearTimeout(guideSearchTimer);
+      guideSearchTimer = setTimeout(() => {
+        mountGuideFilters.search = value;
+        mountGuidePage = 1;
+        renderMountGuide();
+      }, 300);
+    }
+
+    function goGuidePage(page) {
+      mountGuidePage = page;
+      renderMountGuide();
+      const container = document.getElementById('mountGuideContainer');
+      if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function setGuideView(mode) {
+      guideViewMode = mode;
       renderMountGuide();
     }
 
-    function showAllGuideMounts() {
-      // Re-render without limit by temporarily increasing it
-      const container = document.getElementById('mountGuideContainer');
-      if (!container || !mountGuideData) return;
+    // ── Mount Detail Modal ─────────────────────────────────────────────────
+    const MOUNT_GUIDE_TEXT = {
+      DROP: { title: 'Butin de monstre / boss', text: (m) => `Cette monture est un butin rare qui peut tomber sur un ennemi ou boss.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Verifiez le taux de drop sur Wowhead et farmez regulierement pour maximiser vos chances.</span>` },
+      VENDOR: { title: 'Achat chez un vendeur', text: (m) => `Cette monture peut etre achetee aupres d'un vendeur PNJ dans le jeu.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Verifiez le vendeur et le prix exact sur Wowhead. Certains vendeurs necessitent une reputation exaltee.</span>` },
+      ACHIEVEMENT: { title: 'Recompense de haut fait', text: (m) => `Cette monture est obtenue en completant un haut fait specifique.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Consultez les conditions du haut fait sur Wowhead pour planifier votre progression.</span>` },
+      PROFESSION: { title: 'Metier / Fabrication', text: (m) => `Cette monture peut etre fabriquee via un metier de craft.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Verifiez les materiaux necessaires et le niveau de metier requis sur Wowhead.</span>` },
+      QUEST: { title: 'Recompense de quete', text: (m) => `Cette monture est obtenue en completant une quete ou une chaine de quetes.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Consultez le guide de la quete sur Wowhead pour connaitre les pre-requis.</span>` },
+      PETSTORE: { title: 'Boutique Blizzard', text: (m) => `Cette monture est disponible a l'achat dans la boutique Blizzard.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Rendez-vous sur la boutique Battle.net pour l'acheter.</span>` },
+      WORLDEVENT: { title: 'Evenement mondial', text: (m) => `Cette monture est obtenue lors d'un evenement saisonnier ou mondial.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Ces montures ne sont disponibles que pendant la duree de l'evenement. Planifiez en avance !</span>` },
+      PROMOTION: { title: 'Promotion / Edition speciale', text: (m) => `Cette monture a ete offerte via une promotion speciale ou une edition collector.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Certaines promotions ne sont plus disponibles. Verifiez sur Wowhead.</span>` },
+      TCG: { title: 'Carte a collectionner (TCG)', text: (m) => `Cette monture provient du jeu de cartes a collectionner World of Warcraft TCG.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Ces montures sont tres rares et couteuses. Elles se trouvent sur l'hotel des ventes ou via des sites de codes.</span>` },
+      DISCOVERY: { title: 'Decouverte / Exploration', text: (m) => `Cette monture est obtenue par exploration ou decouverte dans le monde.<br><br><b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Conseil : Explorez le monde et verifiez les conditions sur Wowhead.</span>` },
+    };
 
-      // Rebuild with no limit - reuse the filter logic
-      const filtered = mountGuideData.filter(m => {
-        if (mountGuideFilters.source !== 'ALL' && m.source !== mountGuideFilters.source) return false;
-        if (mountGuideFilters.faction === 'ALLIANCE' && m.faction !== 'ALLIANCE') return false;
-        if (mountGuideFilters.faction === 'HORDE' && m.faction !== 'HORDE') return false;
-        if (mountGuideFilters.faction === 'NEUTRAL' && m.faction) return false;
-        const isOwned = mountGuideOwnedIds.has(m.id);
-        if (mountGuideFilters.owned === 'OWNED' && !isOwned) return false;
-        if (mountGuideFilters.owned === 'MISSING' && isOwned) return false;
-        if (mountGuideFilters.search) {
-          const q = mountGuideFilters.search.toLowerCase();
-          if (!(m.name || '').toLowerCase().includes(q) && !(m.description || '').toLowerCase().includes(q)) return false;
-        }
-        return true;
-      });
+    let currentMountDetailId = null;
 
-      // Just append the remaining cards to the grid
-      const grid = container.querySelector('.guide-grid');
-      if (!grid) return;
-      let html = '';
-      for (let i = 200; i < filtered.length; i++) {
-        const m = filtered[i];
-        const isOwned = mountGuideOwnedIds.has(m.id);
-        const srcLabel = SOURCE_LABELS[m.source] || m.source || 'Autre';
-        const factionStr = m.factionName ? `<span class="guide-faction-icon">${m.faction === 'ALLIANCE' ? '&#9877;' : '&#9876;'} ${m.factionName}</span>` : '';
-        html += `
-          <div class="guide-mount-card ${isOwned ? 'owned' : 'missing'}">
-            <img class="guide-mount-icon" src="/api/icon/mount/${m.id}?version=classic" alt="" loading="lazy" onerror="this.style.display='none'" />
-            <div class="guide-mount-info">
-              <div class="guide-mount-name">
-                <span>${m.name}</span>
-                ${isOwned ? '<span class="owned-check">&#10003;</span>' : ''}
-                <span class="guide-source-badge src-${m.source}">${srcLabel}</span>
-                ${factionStr}
-              </div>
-              ${m.description ? `<div class="guide-mount-desc">${m.description}</div>` : ''}
+    function openMountDetail(mountId) {
+      if (!mountGuideData) return;
+      const m = mountGuideData.find(x => x.id === mountId);
+      if (!m) return;
+
+      currentMountDetailId = mountId;
+
+      const isOwned = mountGuideOwnedIds.has(m.id);
+      const srcLabel = SOURCE_LABELS[m.source] || m.source || 'Autre';
+      const guide = MOUNT_GUIDE_TEXT[m.source] || { title: 'Obtention', text: (m) => `<b>Description :</b> ${m.description || 'Aucune description disponible.'}<br><br><span class="tip">Consultez Wowhead pour plus de details sur l\'obtention de cette monture.</span>` };
+
+      // Find prev/next in filtered list
+      const idx = guideFilteredList.findIndex(x => x.id === mountId);
+      const prevMount = idx > 0 ? guideFilteredList[idx - 1] : null;
+      const nextMount = idx < guideFilteredList.length - 1 ? guideFilteredList[idx + 1] : null;
+
+      const html = `
+        <div class="mount-detail-header">
+          <img class="mount-detail-icon" src="/api/icon/mount/${m.id}?version=classic" alt="" onerror="this.style.display='none'" />
+          <div class="mount-detail-title">
+            <div class="mount-detail-name">${m.name}</div>
+            <div class="mount-detail-badges">
+              <span class="guide-source-badge src-${m.source}">${srcLabel}</span>
+              ${m.factionName ? `<span class="guide-source-badge">${m.factionName}</span>` : ''}
+              <span class="mount-detail-owned ${isOwned ? 'yes' : 'no'}">${isOwned ? '&#10003; Possedee' : '&#10007; Non possedee'}</span>
             </div>
-          </div>`;
+          </div>
+        </div>
+        <div class="mount-detail-body">
+          <div class="mount-detail-section">
+            <div class="mount-detail-section-title">${guide.title}</div>
+            <div class="mount-detail-guide">${guide.text(m)}</div>
+          </div>
+          <div class="mount-detail-links">
+            <a href="https://www.wowhead.com/mount/${m.id}" target="_blank" rel="noopener" data-wowhead="mount=${m.id}">Voir sur Wowhead</a>
+          </div>
+        </div>
+        <div class="mount-detail-nav">
+          <button class="mount-detail-nav-btn" onclick="openMountDetail(${prevMount ? prevMount.id : 0})" ${!prevMount ? 'disabled' : ''}>&lsaquo; ${prevMount ? prevMount.name : 'Precedent'}</button>
+          <span style="font-size:11px;color:var(--text-muted)">${idx + 1} / ${guideFilteredList.length}</span>
+          <button class="mount-detail-nav-btn" onclick="openMountDetail(${nextMount ? nextMount.id : 0})" ${!nextMount ? 'disabled' : ''}>${nextMount ? nextMount.name : 'Suivant'} &rsaquo;</button>
+        </div>`;
+
+      document.getElementById('mountDetailContent').innerHTML = html;
+      document.getElementById('mountDetailOverlay').classList.add('open');
+
+      // Refresh Wowhead tooltips if available
+      if (typeof $WowheadPower !== 'undefined' && $WowheadPower.refreshLinks) {
+        setTimeout(() => $WowheadPower.refreshLinks(), 100);
       }
-      grid.insertAdjacentHTML('beforeend', html);
-      // Remove the "show more" button
-      const btn = container.querySelector('.btn-secondary');
-      if (btn) btn.parentElement.remove();
     }
+
+    function closeMountDetail() {
+      document.getElementById('mountDetailOverlay').classList.remove('open');
+      currentMountDetailId = null;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMountDetail();
+      if (!currentMountDetailId || !guideFilteredList.length) return;
+      const idx = guideFilteredList.findIndex(x => x.id === currentMountDetailId);
+      if (e.key === 'ArrowLeft' && idx > 0) openMountDetail(guideFilteredList[idx - 1].id);
+      if (e.key === 'ArrowRight' && idx < guideFilteredList.length - 1) openMountDetail(guideFilteredList[idx + 1].id);
+    });
 
     function switchDiff(tab, id) {
       const card = tab.closest('.card') || tab.closest('div');

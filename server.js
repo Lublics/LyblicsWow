@@ -725,16 +725,8 @@ app.get('/api/character/full', async (req, res) => {
       console.log(`  [Icons] Item icons done`);
     }
 
-    // Pre-fetch mount icons for owned mounts (batch with concurrency limit)
-    if (result.mounts && result.mounts.owned.length > 0) {
-      console.log(`  [Icons] Fetching ${result.mounts.owned.length} owned mount icons...`);
-      await batchResolve(result.mounts.owned, 10, async (mount) => {
-        mount.icon = await resolveMountIcon(mount.id, version) || '';
-      });
-      console.log(`  [Icons] Owned mount icons done`);
-    }
-    // Missing mounts: DON'T pre-fetch (too many, would be slow)
-    // They use the /api/icon/mount/:id lazy endpoint instead
+    // Mount icons: NOT pre-fetched (too slow, 2 API calls per mount)
+    // Frontend uses lazy loading via /api/icon/mount/:id instead
 
     res.json(result);
   } catch (e) { res.json({ error: e.message }); }
