@@ -294,6 +294,57 @@ app.get('/api/mounts', async (req, res) => {
   } catch (e) { res.json({ error: e.message }); }
 });
 
+// ── API: Icon Proxy (cached) ─────────────────────────────────────────────────
+const iconCache = new Map();
+
+app.get('/api/icon/item/:id', async (req, res) => {
+  const { id } = req.params;
+  const version = req.query.version || 'classic';
+  const key = `item-${version}-${id}`;
+
+  if (iconCache.has(key)) return res.redirect(iconCache.get(key));
+
+  const ns = { retail: 'static-eu', classic: 'static-classic-eu', classic_era: 'static-classic1x-eu' }[version] || 'static-classic-eu';
+
+  try {
+    const media = await blizzardRequest(`/data/wow/media/item/${id}`, ns);
+    if (media.status === 200 && media.data.assets) {
+      const icon = media.data.assets.find(a => a.key === 'icon');
+      if (icon) {
+        iconCache.set(key, icon.value);
+        return res.redirect(icon.value);
+      }
+    }
+  } catch {}
+  res.status(404).send('');
+});
+
+app.get('/api/icon/mount/:id', async (req, res) => {
+  const { id } = req.params;
+  const version = req.query.version || 'classic';
+  const key = `mount-${version}-${id}`;
+
+  if (iconCache.has(key)) return res.redirect(iconCache.get(key));
+
+  const ns = { retail: 'static-eu', classic: 'static-classic-eu', classic_era: 'static-classic1x-eu' }[version] || 'static-classic-eu';
+
+  try {
+    const mount = await blizzardRequest(`/data/wow/mount/${id}`, ns);
+    if (mount.status === 200 && mount.data.creature_displays?.length > 0) {
+      const displayId = mount.data.creature_displays[0].id;
+      const media = await blizzardRequest(`/data/wow/media/creature-display/${displayId}`, ns);
+      if (media.status === 200 && media.data.assets) {
+        const asset = media.data.assets.find(a => a.key === 'zoom') || media.data.assets[0];
+        if (asset) {
+          iconCache.set(key, asset.value);
+          return res.redirect(asset.value);
+        }
+      }
+    }
+  } catch {}
+  res.status(404).send('');
+});
+
 // ── API: Full Character Profile ──────────────────────────────────────────────
 app.get('/api/character/full', async (req, res) => {
   const { realm, name, version = 'classic' } = req.query;
@@ -383,6 +434,7 @@ app.get('/api/character/full', async (req, res) => {
     if (equipment.status === 200 && equipment.data.equipped_items) {
       for (const item of equipment.data.equipped_items) {
         result.equipment.push({
+          itemId: item.item?.id || 0,
           slot: item.slot?.type || '',
           slotName: item.slot?.name || '',
           name: item.name || '',

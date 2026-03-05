@@ -1032,6 +1032,93 @@
       color: var(--accent-orange);
     }
 
+    /* ── Sidebar Character Items ───────────────────────────── */
+    .sidebar-char {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 20px;
+      cursor: pointer;
+      transition: background var(--transition);
+      font-size: 13px;
+    }
+
+    .sidebar-char:hover { background: var(--bg-hover); }
+
+    .sidebar-char img {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .sidebar-char .sc-placeholder {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-char .sc-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-char .sc-level {
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    /* ── Item & Mount Icons ─────────────────────────────────── */
+    .item-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+    }
+
+    .item-icon.quality-POOR { border-color: #9d9d9d; }
+    .item-icon.quality-COMMON { border-color: var(--text-primary); }
+    .item-icon.quality-UNCOMMON { border-color: #1eff00; }
+    .item-icon.quality-RARE { border-color: #0070dd; }
+    .item-icon.quality-EPIC { border-color: #a335ee; }
+    .item-icon.quality-LEGENDARY { border-color: #ff8000; }
+    .item-icon.quality-ARTIFACT { border-color: #e6cc80; }
+    .item-icon.quality-HEIRLOOM { border-color: #00ccff; }
+
+    .mount-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--bg-primary);
+    }
+
+    .mount-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mount-item img.mount-icon {
+      display: block;
+    }
+
+    .mount-icon-fail { display: none; }
+
     /* ── Search Bar ────────────────────────────────────────────────────────── */
     .search-form {
       display: flex;
@@ -1424,6 +1511,10 @@
           <div class="nav-section-label">Personnages</div>
           <div class="nav-item" data-page="characters">
             <span class="nav-icon">&#128100;</span> Mes Personnages
+          </div>
+          <div id="sidebarChars"></div>
+          <div class="nav-item" style="color:var(--text-muted);font-size:12px" onclick="navigate('characters');openCharSearch()">
+            <span class="nav-icon" style="font-size:14px">+</span> Ajouter...
           </div>
         </div>
       </nav>
@@ -2362,10 +2453,15 @@
     function renderSavedCharsBar() {
       const chars = getSavedChars();
       const bar = document.getElementById('savedCharsBar');
+      const sidebar = document.getElementById('sidebarChars');
+
       if (!chars.length) {
         bar.innerHTML = '';
+        sidebar.innerHTML = '';
         return;
       }
+
+      // Main page bar
       let html = '';
       chars.forEach((c, i) => {
         const versionLabel = c.version === 'retail' ? 'Retail' : c.version === 'classic_era' ? 'Era' : 'Classic';
@@ -2381,6 +2477,18 @@
       });
       html += `<div class="add-char-btn" onclick="openCharSearch()" title="Ajouter un personnage">+</div>`;
       bar.innerHTML = html;
+
+      // Sidebar characters
+      let sideHtml = '';
+      chars.forEach((c, i) => {
+        sideHtml += `
+          <div class="sidebar-char" onclick="navigate('characters');loadSavedChar(${i})" title="${c.name}">
+            ${c.avatar ? `<img src="${c.avatar}" alt="${c.name}" />` : `<div class="sc-placeholder">&#128100;</div>`}
+            <span class="sc-name class-${getClassSlug(c.className)}">${c.name}</span>
+            <span class="sc-level">${c.level}</span>
+          </div>`;
+      });
+      sidebar.innerHTML = sideHtml;
     }
 
     async function loadSavedChar(index) {
@@ -2573,11 +2681,14 @@
         const combatSlots = sorted.filter(i => !['SHIRT','TABARD'].includes(i.slot));
         const avgIlvl = combatSlots.length > 0 ? Math.round(combatSlots.reduce((s, i) => s + i.level, 0) / combatSlots.length) : 0;
         if (avgIlvl) html += `<div class="card" style="margin-bottom:12px;padding:12px 16px;text-align:center"><span style="color:var(--text-muted)">Item Level Moyen:</span> <b style="font-size:18px;color:var(--accent-blue)">${avgIlvl}</b></div>`;
+        const charVersion = c.version || 'classic';
         html += '<div class="equip-grid">';
         for (const item of sorted) {
           const enchStr = item.enchantments?.length ? `<div class="equip-details" style="color:var(--accent-green)">${item.enchantments[0]}</div>` : '';
+          const iconUrl = item.itemId ? `/api/icon/item/${item.itemId}?version=${charVersion}` : '';
           html += `
             <div class="equip-item quality-${item.quality}">
+              ${iconUrl ? `<img class="item-icon quality-${item.quality}" src="${iconUrl}" alt="" loading="lazy" onerror="this.style.display='none'" />` : ''}
               <div class="equip-slot">${item.slotName}</div>
               <div style="flex:1;min-width:0">
                 <div class="equip-name quality-${item.quality}" style="border:none">${item.name}</div>
@@ -2652,9 +2763,10 @@
         const m = data.mounts;
         const pct = m.percentage || 0;
         html += '<div class="char-tab-content" id="ctab-mounts">';
+        const mountVersion = c.version || 'classic';
         let ownedItems = '', missingItems = '';
-        for (const mt of (m.owned || [])) ownedItems += `<div class="mount-item owned">${mt.name}</div>`;
-        for (const mt of (m.missing || [])) missingItems += `<div class="mount-item missing">${mt.name}</div>`;
+        for (const mt of (m.owned || [])) ownedItems += `<div class="mount-item owned"><img class="mount-icon" src="/api/icon/mount/${mt.id}?version=${mountVersion}" alt="" loading="lazy" onerror="this.classList.add('mount-icon-fail')" /><span>${mt.name}</span></div>`;
+        for (const mt of (m.missing || [])) missingItems += `<div class="mount-item missing"><img class="mount-icon" src="/api/icon/mount/${mt.id}?version=${mountVersion}" alt="" loading="lazy" onerror="this.classList.add('mount-icon-fail')" /><span>${mt.name}</span></div>`;
         html += `
           <div class="card">
             <div class="card-header"><span class="card-title">Montures</span><span class="text-muted" style="font-size:13px">${m.ownedCount} / ${m.totalCount}</span></div>
