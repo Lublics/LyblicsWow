@@ -1,4 +1,4 @@
-# LyblicsWow
+# LyblicsWow - https://wow.lyblics.com/
 
 Panel de suivi en temps réel pour les addons WoW — **Mists of Pandaria Classic**.
 
