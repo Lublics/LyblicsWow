@@ -24,8 +24,9 @@ process.on('unhandledRejection', (err) => {
 const SERVER_URL = process.env.SERVER_URL || 'https://wow.lyblics.com';
 const API_KEY = process.env.API_KEY || 'lyblics-sync-key-change-me';
 
-const WOW_PATH = 'C:/Program Files (x86)/World of Warcraft/_classic_';
-const SAVED_VARIABLES_PATH = WOW_PATH + '/WTF/Account/431680372#2/SavedVariables';
+const WOW_PATH = process.env.WOW_PATH || 'C:/Program Files (x86)/World of Warcraft/_classic_';
+const SAVED_VARIABLES_PATH = process.env.WOW_ACCOUNT_PATH
+  || WOW_PATH + '/WTF/Account/YOUR_ACCOUNT_ID/SavedVariables';
 
 const SV_POLL_INTERVAL = 2000;       // Check SavedVariables every 2s
 const HEARTBEAT_INTERVAL = 5000;     // Heartbeat every 5s

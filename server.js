@@ -8,8 +8,12 @@ const { WebSocketServer } = require('ws');
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'lyblics-sync-key-change-me';
 
-const BLIZZARD_CLIENT_ID = process.env.BLIZZARD_CLIENT_ID || 'f42ca8de2b6e429e93aec93931c0f1a0';
-const BLIZZARD_CLIENT_SECRET = process.env.BLIZZARD_CLIENT_SECRET || 'C15RyUFM4vEwiEq7B1k1vbfFvAOjH4qc';
+const BLIZZARD_CLIENT_ID = process.env.BLIZZARD_CLIENT_ID;
+const BLIZZARD_CLIENT_SECRET = process.env.BLIZZARD_CLIENT_SECRET;
+if (!BLIZZARD_CLIENT_ID || !BLIZZARD_CLIENT_SECRET) {
+  console.error('ERROR: BLIZZARD_CLIENT_ID and BLIZZARD_CLIENT_SECRET must be set in environment variables.');
+  process.exit(1);
+}
 const BLIZZARD_LOCALE = 'fr_FR';
 const BLIZZARD_API_BASE = 'https://eu.api.blizzard.com';
 const BLIZZARD_AUTH_URL = 'https://oauth.battle.net/token';
